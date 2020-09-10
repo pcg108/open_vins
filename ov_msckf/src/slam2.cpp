@@ -187,15 +187,12 @@ public:
 		, open_vins_estimator{manager_params}
 		, imu_cam_buffer{nullptr}
 	{
-		_m_pose.put(_m_pose.allocate(
-			std::chrono::time_point<std::chrono::system_clock>{},
-			Eigen::Vector3f{0, 0, 0},
-			Eigen::Quaternionf{1, 0, 0, 0}
-		));
-
         // Disabling OpenCV threading is faster on x86 desktop but slower on
         // jetson. Keeping this here for manual disabling.
         // cv::setNumThreads(0);
+		_m_pose = sb->publish<pose_type>("slow_pose");
+		_m_begin = std::chrono::system_clock::now();
+		imu_cam_buffer = NULL;
 
 #ifdef CV_HAS_METRICS
 		cv::metrics::setAccount(new std::string{"-1"});
