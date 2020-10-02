@@ -221,6 +221,27 @@ public:
 		assert((datum->img0.has_value() && datum->img1.has_value()) || (!datum->img0.has_value() && !datum->img1.has_value()));
 		open_vins_estimator.feed_measurement_imu(duration2double(datum->time.time_since_epoch()), datum->angular_v.cast<double>(), datum->linear_a.cast<double>());
 
+		if (open_vins_estimator.initialized()) {
+			Eigen::Matrix<double,13,1> state_plus = Eigen::Matrix<double,13,1>::Zero();
+			imu_raw_type *imu_raw_data = new (_m_imu_raw.allocate()) imu_raw_type {
+				Eigen::Matrix<double, 3, 1>::Zero(), 
+				Eigen::Matrix<double, 3, 1>::Zero(), 
+				Eigen::Matrix<double, 3, 1>::Zero(), 
+				Eigen::Matrix<double, 3, 1>::Zero(),
+				Eigen::Matrix<double, 13, 1>::Zero(),
+				// Record the timestamp (in ILLIXR time) associated with this imu sample.
+				// Used for MTP calculations.
+				datum->time
+			};
+        	open_vins_estimator.get_propagator()->fast_state_propagate(state, timestamp_in_seconds, state_plus, imu_raw_data);
+
+			_m_imu_raw.put(imu_raw_data);
+		}
+
+		// std::cout << std::fixed << "Time of IMU/CAM: " << timestamp_in_seconds * 1e9 << " Lin a: " << 
+		// 	datum->angular_v[0] << ", " << datum->angular_v[1] << ", " << datum->angular_v[2] << ", " <<
+		// 	datum->linear_a[0] << ", " << datum->linear_a[1] << ", " << datum->linear_a[2] << std::endl;
+
 		// If there is not cam data this func call, break early
 		if (!datum->img0.has_value() && !datum->img1.has_value()) {
 			return;
