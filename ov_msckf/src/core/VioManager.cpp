@@ -571,16 +571,6 @@ void VioManager::do_feature_propagate_update(double timestamp) {
     printf(GREEN "[AVG-TIME]: %.4f ms for filter\n" RESET, total_filter_time / (double) total_images);
     printf(GREEN "[AVG-TIME]: %.4f ms for total\n" RESET, total_frame_time / (double) total_images);
 
-    // Keep track of average
-    total_images++;
-    total_tracking_time += time_track;
-    total_filter_time += (time_total - time_track);
-    total_frame_time += time_total;
-
-    printf(GREEN "[AVG-TIME]: %.4f ms for tracking\n" RESET, total_tracking_time / (double) total_images);
-    printf(GREEN "[AVG-TIME]: %.4f ms for filter\n" RESET, total_filter_time / (double) total_images);
-    printf(GREEN "[AVG-TIME]: %.4f ms for total\n" RESET, total_frame_time / (double) total_images);
-
     // Finally if we are saving stats to file, lets save it to file
     if(params.record_timing_information && of_statistics.is_open()) {
         // We want to publish in the IMU clock frame
