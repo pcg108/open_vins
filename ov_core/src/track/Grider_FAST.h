@@ -96,10 +96,12 @@ namespace ov_core {
             int ct_rows = std::floor(img.rows/size_y);
             std::vector<std::vector<cv::KeyPoint>> collection(ct_cols*ct_rows);
             parallel_for_(cv::Range(0, ct_cols*ct_rows), [&](const cv::Range& range) {
-				// PRINT_RECORD_FOR_THIS_BLOCK("slam2 par_for");
 				// We time this by timing OpenCV's parallel_for_
 
                 for (int r = range.start; r < range.end; r++) {
+#ifdef ILLIXR_INTEGRATION
+					CPU_TIMER_TIME_FUNCTION();
+#endif /// ILLIXR_INTEGRATION
                     // Calculate what cell xy value we are in
                     int x = r%ct_cols*size_x;
                     int y = r/ct_cols*size_y;
