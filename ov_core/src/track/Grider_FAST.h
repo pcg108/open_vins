@@ -32,7 +32,7 @@
 #include <opencv2/highgui/highgui.hpp>
 
 #ifdef ILLIXR_INTEGRATION
-#include "../../../ov_msckf/src/common/cpu_timer.hpp"
+#include "../../../ov_msckf/src/common/cpu_timer/cpu_timer.hpp"
 #endif /// ILLIXR_INTEGRATION
 
 
