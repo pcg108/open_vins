@@ -220,14 +220,21 @@ public:
 			return;
 		}
 
+		cv::Mat img0;
+		cv::Mat img1;
+
 		{
+#ifdef ILLIXR_INTEGRATION
 			CPU_TIMER_TIME_BLOCK("cv::Mat copy");
-			cv::Mat img0{imu_cam_buffer->img0.value()};
-			cv::Mat img1{imu_cam_buffer->img1.value()};
+#endif /// ILLIXR_INTEGRATION
+			img0 = cv::Mat{imu_cam_buffer->img0.value()};
+			img1 = cv::Mat{imu_cam_buffer->img1.value()};
 		}
 		double buffer_timestamp_seconds = double(imu_cam_buffer->dataset_time) / NANO_SEC;
 		{
+#ifdef ILLIXR_INTEGRATION
 			CPU_TIMER_TIME_BLOCK("feed_measurement_stereo");
+#endif /// ILLIXR_INTEGRATION
 			open_vins_estimator.feed_measurement_stereo(buffer_timestamp_seconds, img0, img1, 0, 1);
 		}
 
@@ -250,7 +257,9 @@ public:
         assert(isfinite(swapped_pos[2]));
 
 		if (open_vins_estimator.initialized()) {
+#ifdef ILLIXR_INTEGRATION
 			CPU_TIMER_TIME_BLOCK("publish");
+#endif /// ILLIXR_INTEGRATION
 
 			if (isUninitialized) {
 				isUninitialized = false;

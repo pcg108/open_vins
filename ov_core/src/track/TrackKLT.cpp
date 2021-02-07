@@ -190,6 +190,10 @@ void TrackKLT::feed_stereo(double timestamp, cv::Mat &img_leftin, cv::Mat &img_r
 #endif /// ILLIXR_INTEGRATION
     rT2 =  boost::posix_time::microsec_clock::local_time();
 
+	{
+#ifdef ILLIXR_INTEGRATION
+	CPU_TIMER_TIME_BLOCK("preform_detection");
+#endif /// ILLIXR_INTEGRATION
     // If we didn't have any successful tracks last time, just extract this time
     // This also handles, the tracking initalization on the first call to this extractor
     if(pts_last[cam_id_left].empty() || pts_last[cam_id_right].empty()) {
@@ -209,6 +213,7 @@ void TrackKLT::feed_stereo(double timestamp, cv::Mat &img_leftin, cv::Mat &img_r
                              pts_last[cam_id_left], pts_last[cam_id_right],
                              ids_last[cam_id_left], ids_last[cam_id_right]);
     rT3 =  boost::posix_time::microsec_clock::local_time();
+	}
 
 
     //===================================================================================
@@ -264,7 +269,15 @@ void TrackKLT::feed_stereo(double timestamp, cv::Mat &img_leftin, cv::Mat &img_r
     //===================================================================================
     //===================================================================================
 
+    // Get our "good tracks"
+    std::vector<cv::KeyPoint> good_left, good_right;
+    std::vector<size_t> good_ids_left, good_ids_right;
+
     // If any of our masks are empty, that means we didn't have enough to do ransac, so just return
+	{
+#ifdef ILLIXR_INTEGRATION
+	CPU_TIMER_TIME_BLOCK("find_points");
+#endif /// ILLIXR_INTEGRATION
     if(mask_ll.empty() || mask_rr.empty()) {
         img_last[cam_id_left] = img_left.clone();
         img_last[cam_id_right] = img_right.clone();
@@ -277,10 +290,6 @@ void TrackKLT::feed_stereo(double timestamp, cv::Mat &img_leftin, cv::Mat &img_r
         printf(RED "[KLT-EXTRACTOR]: Failed to get enough points to do RANSAC, resetting....." RESET);
         return;
     }
-
-    // Get our "good tracks"
-    std::vector<cv::KeyPoint> good_left, good_right;
-    std::vector<size_t> good_ids_left, good_ids_right;
 
     // Loop through all left points
     for(size_t i=0; i<pts_left_new.size(); i++) {
@@ -329,10 +338,15 @@ void TrackKLT::feed_stereo(double timestamp, cv::Mat &img_leftin, cv::Mat &img_r
             //std::cout << "adding to right - " << ids_last[cam_id_right].at(i) << std::endl;
         }
     }
+	}
 
     //===================================================================================
     //===================================================================================
 
+	{
+#ifdef ILLIXR_INTEGRATION
+	CPU_TIMER_TIME_BLOCK("database->update_feature");
+#endif /// ILLIXR_INTEGRATION
     // Update our feature database, with theses new observations
     for(size_t i=0; i<good_left.size(); i++) {
         cv::Point2f npt_l = undistort_point(good_left.at(i).pt, cam_id_left);
@@ -357,6 +371,7 @@ void TrackKLT::feed_stereo(double timestamp, cv::Mat &img_leftin, cv::Mat &img_r
     ids_last[cam_id_left] = good_ids_left;
     ids_last[cam_id_right] = good_ids_right;
     rT6 =  boost::posix_time::microsec_clock::local_time();
+	}
 
 #ifndef NDEBUG
     // Timing information
