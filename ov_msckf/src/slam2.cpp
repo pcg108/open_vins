@@ -221,23 +221,6 @@ public:
 		assert((datum->img0.has_value() && datum->img1.has_value()) || (!datum->img0.has_value() && !datum->img1.has_value()));
 		open_vins_estimator.feed_measurement_imu(duration2double(datum->time.time_since_epoch()), datum->angular_v.cast<double>(), datum->linear_a.cast<double>());
 
-		if (open_vins_estimator.initialized()) {
-			Eigen::Matrix<double,13,1> state_plus = Eigen::Matrix<double,13,1>::Zero();
-			imu_raw_type *imu_raw_data = new (_m_imu_raw.allocate()) imu_raw_type {
-				Eigen::Matrix<double, 3, 1>::Zero(), 
-				Eigen::Matrix<double, 3, 1>::Zero(), 
-				Eigen::Matrix<double, 3, 1>::Zero(), 
-				Eigen::Matrix<double, 3, 1>::Zero(),
-				Eigen::Matrix<double, 13, 1>::Zero(),
-				// Record the timestamp (in ILLIXR time) associated with this imu sample.
-				// Used for MTP calculations.
-				datum->time
-			};
-        	open_vins_estimator.get_propagator()->fast_state_propagate(state, timestamp_in_seconds, state_plus, imu_raw_data);
-
-			_m_imu_raw.put(imu_raw_data);
-		}
-
 		// std::cout << std::fixed << "Time of IMU/CAM: " << timestamp_in_seconds * 1e9 << " Lin a: " << 
 		// 	datum->angular_v[0] << ", " << datum->angular_v[1] << ", " << datum->angular_v[2] << ", " <<
 		// 	datum->linear_a[0] << ", " << datum->linear_a[1] << ", " << datum->linear_a[2] << std::endl;
@@ -261,12 +244,6 @@ public:
 
 		cv::Mat img0{imu_cam_buffer->img0.value()};
 		cv::Mat img1{imu_cam_buffer->img1.value()};
-		open_vins_estimator.feed_measurement_stereo(duration2double(imu_cam_buffer->time.time_since_epoch()), img0, img1, 0, 1);
-
-		// Get the pose returned from SLAM
-		state = open_vins_estimator.get_state();
-		Eigen::Vector4d quat = state->_imu->quat();
-		Eigen::Vector3d vel = state->_imu->vel();
 		Eigen::Vector3d pose = state->_imu->pos();
 
 		Eigen::Vector3f swapped_pos = Eigen::Vector3f{float(pose(0)), float(pose(1)), float(pose(2))};
