@@ -186,7 +186,7 @@ public:
 		, open_vins_estimator{manager_params}
 		, imu_cam_buffer{nullptr}
 	{
-		sb->schedule<imu_cam_type>(id, "imu_cam", [&](switchboard::ptr<const imu_cam_type> datum, std::size_t iteration_no) {
+		sb->schedule<imu_cam_type>(get_name(), "imu_cam", [&](switchboard::ptr<const imu_cam_type> datum, std::size_t iteration_no) {
 			this->feed_imu_cam(datum, iteration_no);
 		});
 	}
