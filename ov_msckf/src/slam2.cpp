@@ -203,6 +203,7 @@ public:
 		, _m_imu_integrator_input{sb->get_writer<imu_integrator_input>("imu_integrator_input")}
 		, open_vins_estimator{manager_params}
 		, _m_rtc{pb->lookup_impl<realtime_clock>()}
+		, _m_cam{sb->get_reader<cam_type>("cam")}
 	{
 		_m_pose.put(new (_m_pose.allocate()) pose_type{
 			_m_rtc->now(),
@@ -214,17 +215,18 @@ public:
 
 	virtual void start() override {
 		plugin::start();
-		sb->schedule<imu_cam_type>(id, "imu_cam", [&](switchboard::ptr<const imu_cam_type> datum, std::size_t iteration_no) {
+		sb->schedule<imu_type>(id, "imu", [&](switchboard::ptr<const imu_type> datum, std::size_t iteration_no) {
 			this->feed_imu_cam(datum, iteration_no);
 		});
 	}
 
-	void feed_imu_cam(switchboard::ptr<const imu_cam_type> datum, std::size_t iteration_no) {
+	void feed_imu_cam(switchboard::ptr<const imu_type> datum, std::size_t iteration_no) {
 
 		auto start = std::chrono::steady_clock::now();
 		auto start_comptime = cpu_timer::detail::cpu_now();
 
 		// Ensures that slam doesnt start before valid IMU readings come in
+		switchboard::ptr<const cam_type> cam;
        double timestamp_in_seconds = 0;
        {
 	       CPU_TIMER_TIME_BLOCK("IMU");
@@ -245,18 +247,22 @@ public:
 		// 	datum->angular_v[0] << ", " << datum->angular_v[1] << ", " << datum->angular_v[2] << ", " <<
 		// 	datum->linear_a[0] << ", " << datum->linear_a[1] << ", " << datum->linear_a[2] << std::endl;
 
-		// If there is not cam data this func call, break early
-		if (!datum->img0.has_value() && !datum->img1.has_value()) {
+		cam = _m_cam.get_ro_nullable();
+		if (!cam) {
 			return;
-		} else if (imu_cam_buffer == NULL) {
-			imu_cam_buffer = datum;
+		}
+		if (!cam_buffer) {
+			cam_buffer = cam;
+			return;
+		}
+		if (cam->time == cam_buffer->time) {
 			return;
 		}
 	   }
 
-		cv::Mat img0 = cv::Mat{imu_cam_buffer->img0.value()};
-		cv::Mat img1 = cv::Mat{imu_cam_buffer->img1.value()};
-		double buffer_timestamp_seconds = double(imu_cam_buffer->dataset_time) / NANO_SEC;
+		cv::Mat img0 = cv::Mat{cam_buffer->img0};
+		cv::Mat img1 = cv::Mat{cam_buffer->img1};
+		double buffer_timestamp_seconds = double(cam_buffer->dataset_time) / NANO_SEC;
 		open_vins_estimator.feed_measurement_stereo(buffer_timestamp_seconds, img0, img1, 0, 1);
 
 		// Get the pose returned from SLAM
@@ -285,7 +291,7 @@ public:
 			}
 
 			_m_pose.put(new (_m_pose.allocate()) pose_type{
-				imu_cam_buffer->time,
+				cam_buffer->time,
 				swapped_pos,
 				swapped_rot,
 			});
@@ -310,7 +316,7 @@ public:
 			});
 		}
 
-		imu_cam_buffer = datum;
+		cam_buffer = cam;
 
 		auto stop = std::chrono::steady_clock::now();
 		auto stop_comptime = cpu_timer::detail::cpu_now();
@@ -335,10 +341,12 @@ private:
 	VioManagerOptions manager_params = create_params();
 	VioManager open_vins_estimator;
 
-	switchboard::ptr<const imu_cam_type> imu_cam_buffer;
+	switchboard::ptr<const cam_type> cam_buffer;
 	double previous_timestamp = 0.0;
 	bool isUninitialized = true;
 	std::shared_ptr<realtime_clock> _m_rtc;
+	switchboard::reader<cam_type> _m_cam;
+
 };
 
 PLUGIN_MAIN(slam2)
