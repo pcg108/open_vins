@@ -201,19 +201,14 @@ public:
 		, sb{pb->lookup_impl<switchboard>()}
 		, _m_pose{sb->get_writer<pose_type>("slow_pose")}
 		, _m_imu_integrator_input{sb->get_writer<imu_integrator_input>("imu_integrator_input")}
-		, _m_rtc{pb->lookup_impl<realtime_clock>()}
 		, open_vins_estimator{manager_params}
+		, _m_rtc{pb->lookup_impl<realtime_clock>()}
 	{
 		_m_pose.put(new (_m_pose.allocate()) pose_type{
 			_m_rtc->now(),
 			Eigen::Vector3f{0, 0, 0},
 			Eigen::Quaternionf{1, 0, 0, 0}
 		});
-
-#ifdef CV_HAS_METRICS
-		cv::metrics::setAccount(new std::string{"-1"});
-#endif
-
 	}
 
 
@@ -224,16 +219,18 @@ public:
 		});
 	}
 
-
 	void feed_imu_cam(switchboard::ptr<const imu_cam_type> datum, std::size_t iteration_no) {
 
 		auto start = std::chrono::steady_clock::now();
-		auto start_comptime = thread_cpu_time();
+		auto start_comptime = cpu_timer::detail::cpu_now();
 
 		// Ensures that slam doesnt start before valid IMU readings come in
-		if (datum == NULL) {
-			assert(previous_timestamp == 0);
-			return;
+		double timestamp_in_seconds;
+		{
+			CPU_TIMER_TIME_BLOCK("IMU");
+		if (datum == nullptr) {
+			std::cerr << "slam2:feed_imu_cam datum == nullptr\n";
+			abort();
 		}
 
 		double timestamp_in_seconds = (double(datum->dataset_time) / NANO_SEC);
@@ -255,18 +252,16 @@ public:
 			imu_cam_buffer = datum;
 			return;
 		}
-
-#ifdef CV_HAS_METRICS
-		cv::metrics::setAccount(new std::string{std::to_string(iteration_no)});
-		if (iteration_no % 20 == 0) {
-			cv::metrics::dump();
 		}
-#else
-#warning "No OpenCV metrics available. Please recompile OpenCV from git clone --branch 3.4.6-instrumented https://github.com/ILLIXR/opencv/. (see install_deps.sh)"
-#endif
 
-		cv::Mat img0{imu_cam_buffer->img0.value()};
-		cv::Mat img1{imu_cam_buffer->img1.value()};
+		cv::Mat img0;
+		cv::Mat img1;
+		{
+			CPU_TIMER_TIME_BLOCK("cv::Mat copy");
+			img0 = cv::Mat{imu_cam_buffer->img0.value()};
+			img1 = cv::Mat{imu_cam_buffer->img1.value()};
+
+		}
 		double buffer_timestamp_seconds = double(imu_cam_buffer->dataset_time) / NANO_SEC;
 		open_vins_estimator.feed_measurement_stereo(buffer_timestamp_seconds, img0, img1, 0, 1);
 
@@ -289,6 +284,8 @@ public:
         assert(isfinite(swapped_pos[2]));
 
 		if (open_vins_estimator.initialized()) {
+			CPU_TIMER_TIME_BLOCK("publish");
+
 			if (isUninitialized) {
 				isUninitialized = false;
 			}
@@ -322,7 +319,7 @@ public:
 		imu_cam_buffer = datum;
 
 		auto stop = std::chrono::steady_clock::now();
-		auto stop_comptime = thread_cpu_time();
+		auto stop_comptime = cpu_timer::detail::cpu_now();
 		if (stop - start > std::chrono::milliseconds{100}) {
 			std::cerr << "\e[1;34mSLAM is slow. Ratio = " << slow_count << ":" << fast_count << ", wall time = " << std::chrono::duration_cast<std::chrono::milliseconds>(stop - start).count() << "ms, comp time = " << std::chrono::duration_cast<std::chrono::milliseconds>(stop_comptime - start_comptime).count() << "ms, timestamp = epoch+" << std::chrono::duration_cast<std::chrono::milliseconds>(start.time_since_epoch()).count() << "ms\e[0m\n";
 			slow_count++;
@@ -332,8 +329,6 @@ public:
 	}
 
 	size_t slow_count = 0, fast_count = 0;
-
-	virtual ~slam2() override {}
 
 private:
 	const std::shared_ptr<switchboard> sb;

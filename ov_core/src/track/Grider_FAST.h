@@ -31,7 +31,7 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
-#include "../../../ov_msckf/src/common/cpu_timer.hpp"
+#include "../../../ov_msckf/src/common/cpu_timer/cpu_timer.hpp"
 
 namespace ov_core {
 
@@ -93,8 +93,7 @@ namespace ov_core {
             int ct_rows = std::floor(img.rows/size_y);
             std::vector<std::vector<cv::KeyPoint>> collection(ct_cols*ct_rows);
             parallel_for_(cv::Range(0, ct_cols*ct_rows), [&](const cv::Range& range) {
-				// PRINT_RECORD_FOR_THIS_BLOCK("slam2 par_for");
-				// We time this by timing OpenCV's parallel_for_
+				CPU_TIMER_TIME_BLOCK("perform_griding");
 
                 for (int r = range.start; r < range.end; r++) {
 
