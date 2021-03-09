@@ -225,15 +225,15 @@ public:
 		auto start_comptime = cpu_timer::detail::cpu_now();
 
 		// Ensures that slam doesnt start before valid IMU readings come in
-		double timestamp_in_seconds;
-		{
-			CPU_TIMER_TIME_BLOCK("IMU");
+       double timestamp_in_seconds = 0;
+       {
+	       CPU_TIMER_TIME_BLOCK("IMU");
 		if (datum == nullptr) {
 			std::cerr << "slam2:feed_imu_cam datum == nullptr\n";
 			abort();
 		}
 
-		double timestamp_in_seconds = (double(datum->dataset_time) / NANO_SEC);
+		timestamp_in_seconds = (double(datum->dataset_time) / NANO_SEC);
 		assert(timestamp_in_seconds > previous_timestamp);
 		previous_timestamp = timestamp_in_seconds;
 
@@ -252,16 +252,10 @@ public:
 			imu_cam_buffer = datum;
 			return;
 		}
-		}
+	   }
 
-		cv::Mat img0;
-		cv::Mat img1;
-		{
-			CPU_TIMER_TIME_BLOCK("cv::Mat copy");
-			img0 = cv::Mat{imu_cam_buffer->img0.value()};
-			img1 = cv::Mat{imu_cam_buffer->img1.value()};
-
-		}
+		cv::Mat img0 = cv::Mat{imu_cam_buffer->img0.value()};
+		cv::Mat img1 = cv::Mat{imu_cam_buffer->img1.value()};
 		double buffer_timestamp_seconds = double(imu_cam_buffer->dataset_time) / NANO_SEC;
 		open_vins_estimator.feed_measurement_stereo(buffer_timestamp_seconds, img0, img1, 0, 1);
 
