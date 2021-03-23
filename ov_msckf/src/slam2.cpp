@@ -235,12 +235,11 @@ public:
 			abort();
 		}
 
-		timestamp_in_seconds = (double(datum->dataset_time) / NANO_SEC);
+		timestamp_in_seconds = (double(datum->dataset_time) / NANO_SEC.count());
 		assert(timestamp_in_seconds > previous_timestamp);
 		previous_timestamp = timestamp_in_seconds;
 
 		// Feed the IMU measurement. There should always be IMU data in each call to feed_imu_cam
-		assert((datum->img0.has_value() && datum->img1.has_value()) || (!datum->img0.has_value() && !datum->img1.has_value()));
 		open_vins_estimator.feed_measurement_imu(timestamp_in_seconds, (datum->angular_v).cast<double>(), (datum->linear_a).cast<double>());
 
 		// std::cout << std::fixed << "Time of IMU/CAM: " << timestamp_in_seconds * 1e9 << " Lin a: " << 
@@ -262,7 +261,7 @@ public:
 
 		cv::Mat img0 = cv::Mat{cam_buffer->img0};
 		cv::Mat img1 = cv::Mat{cam_buffer->img1};
-		double buffer_timestamp_seconds = double(cam_buffer->dataset_time) / NANO_SEC;
+		double buffer_timestamp_seconds = double(cam_buffer->dataset_time) / NANO_SEC.count();
 		open_vins_estimator.feed_measurement_stereo(buffer_timestamp_seconds, img0, img1, 0, 1);
 
 		// Get the pose returned from SLAM
