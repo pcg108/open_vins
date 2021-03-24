@@ -188,7 +188,7 @@ public:
 		, imu_cam_buffer{nullptr}
 	{
 		_m_pose.put(_m_pose.allocate(
-			std::chrono::time_point<std::chrono::system_clock>{},
+			time_point{},
 			Eigen::Vector3f{0, 0, 0},
 			Eigen::Quaternionf{1, 0, 0, 0}
 		));
@@ -221,7 +221,7 @@ public:
 
 		// This ensures that every data point is coming in chronological order If youre failing this assert, 
 		// make sure that your data folder matches the name in offline_imu_cam/plugin.cc
-		double timestamp_in_seconds = (double(datum->dataset_time) / NANO_SEC);
+		double timestamp_in_seconds = std::chrono::duration<double, std::chrono::seconds::period>{datum->dataset_time}.count();
 		assert(timestamp_in_seconds > previous_timestamp);
 		previous_timestamp = timestamp_in_seconds;
 
@@ -250,9 +250,15 @@ public:
 #warning "No OpenCV metrics available. Please recompile OpenCV from git clone --branch 3.4.6-instrumented https://github.com/ILLIXR/opencv/. (see install_deps.sh)"
 #endif
 
+<<<<<<< HEAD
 		cv::Mat img0{imu_cam_buffer->img0.value()};
 		cv::Mat img1{imu_cam_buffer->img1.value()};
 		double buffer_timestamp_seconds = double(imu_cam_buffer->dataset_time) / NANO_SEC;
+=======
+		cv::Mat img0{*imu_cam_buffer->img0.value()};
+		cv::Mat img1{*imu_cam_buffer->img1.value()};
+		double buffer_timestamp_seconds = std::chrono::duration_cast<double, std::chrono::seconds::period>{imu_cam_buffer->dataset_time}.count();
+>>>>>>> Use time_point
 		open_vins_estimator.feed_measurement_stereo(buffer_timestamp_seconds, img0, img1, 0, 1);
 
 		// Get the pose returned from SLAM
@@ -318,9 +324,15 @@ public:
 
 private:
 	const std::shared_ptr<switchboard> sb;
+<<<<<<< HEAD
 	switchboard::writer<pose_type> _m_pose;
     switchboard::writer<imu_integrator_input> _m_imu_integrator_input;
 	time_type _m_begin;
+=======
+	std::unique_ptr<writer<pose_type>> _m_pose;
+	std::unique_ptr<writer<imu_integrator_input>> _m_imu_integrator_input;
+
+>>>>>>> Use time_point
 	State *state;
 
 	VioManagerOptions manager_params = create_params();
