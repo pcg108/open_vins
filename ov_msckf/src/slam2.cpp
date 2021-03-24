@@ -244,6 +244,12 @@ public:
 
 		cv::Mat img0{imu_cam_buffer->img0.value()};
 		cv::Mat img1{imu_cam_buffer->img1.value()};
+		open_vins_estimator.feed_measurement_stereo(buffer_timestamp_seconds, img0, img1, 0, 1);
+
+		// Get the pose returned from SLAM
+		state = open_vins_estimator.get_state();
+		Eigen::Vector4d quat = state->_imu->quat();
+		Eigen::Vector3d vel = state->_imu->vel();
 		Eigen::Vector3d pose = state->_imu->pos();
 
 		Eigen::Vector3f swapped_pos = Eigen::Vector3f{float(pose(0)), float(pose(1)), float(pose(2))};
