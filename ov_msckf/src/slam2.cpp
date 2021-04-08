@@ -203,7 +203,7 @@ public:
 		, _m_imu_integrator_input{sb->get_writer<imu_integrator_input>("imu_integrator_input")}
 		, open_vins_estimator{manager_params}
 		, _m_rtc{pb->lookup_impl<realtime_clock>()}
-		, _m_cam{sb->get_reader<cam_type>("cam")}
+		, _m_cam{sb->get_buffered_reader<cam_type>("cam")}
 	{
 		_m_pose.put(new (_m_pose.allocate()) pose_type{
 			_m_rtc->now(),
@@ -246,7 +246,9 @@ public:
 		// 	datum->angular_v[0] << ", " << datum->angular_v[1] << ", " << datum->angular_v[2] << ", " <<
 		// 	datum->linear_a[0] << ", " << datum->linear_a[1] << ", " << datum->linear_a[2] << std::endl;
 
-		cam = _m_cam.get_ro_nullable();
+		// Async:
+		// cam = _m_cam.get_ro_nullable();
+		cam = _m_cam.size() == 0 ? nullptr : _m_cam.dequeue();
 		if (!cam) {
 			return;
 		}
@@ -254,9 +256,14 @@ public:
 			cam_buffer = cam;
 			return;
 		}
+		/* This is necsesary in async, to make sure that cam is new
+		   In buffered, cam is new if it is present.
+		   
 		if (cam->time == cam_buffer->time) {
 			return;
 		}
+		*/
+
 	   }
 
 		cv::Mat img0 = cv::Mat{cam_buffer->img0};
@@ -344,7 +351,7 @@ private:
 	double previous_timestamp = 0.0;
 	bool isUninitialized = true;
 	std::shared_ptr<realtime_clock> _m_rtc;
-	switchboard::reader<cam_type> _m_cam;
+	switchboard::buffered_reader<cam_type> _m_cam;
 
 };
 
