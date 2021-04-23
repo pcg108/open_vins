@@ -318,15 +318,9 @@ public:
 
 private:
 	const std::shared_ptr<switchboard> sb;
-<<<<<<< HEAD
 	switchboard::writer<pose_type> _m_pose;
     switchboard::writer<imu_integrator_input> _m_imu_integrator_input;
 	time_type _m_begin;
-=======
-	std::unique_ptr<writer<pose_type>> _m_pose;
-	std::unique_ptr<writer<imu_integrator_input>> _m_imu_integrator_input;
-
->>>>>>> Use time_point
 	State *state;
 
 	VioManagerOptions manager_params = create_params();
