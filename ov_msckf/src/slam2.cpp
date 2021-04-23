@@ -250,15 +250,9 @@ public:
 #warning "No OpenCV metrics available. Please recompile OpenCV from git clone --branch 3.4.6-instrumented https://github.com/ILLIXR/opencv/. (see install_deps.sh)"
 #endif
 
-<<<<<<< HEAD
 		cv::Mat img0{imu_cam_buffer->img0.value()};
 		cv::Mat img1{imu_cam_buffer->img1.value()};
-		double buffer_timestamp_seconds = double(imu_cam_buffer->dataset_time) / NANO_SEC;
-=======
-		cv::Mat img0{*imu_cam_buffer->img0.value()};
-		cv::Mat img1{*imu_cam_buffer->img1.value()};
 		double buffer_timestamp_seconds = std::chrono::duration_cast<double, std::chrono::seconds::period>{imu_cam_buffer->dataset_time}.count();
->>>>>>> Use time_point
 		open_vins_estimator.feed_measurement_stereo(buffer_timestamp_seconds, img0, img1, 0, 1);
 
 		// Get the pose returned from SLAM
