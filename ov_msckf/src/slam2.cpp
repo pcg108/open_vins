@@ -183,7 +183,6 @@ public:
 		, sb{pb->lookup_impl<switchboard>()}
 		, _m_pose{sb->get_writer<pose_type>("slow_pose")}
 		, _m_imu_integrator_input{sb->get_writer<imu_integrator_input>("imu_integrator_input")}
-		, _m_begin{std::chrono::system_clock::now()}
 		, open_vins_estimator{manager_params}
 		, imu_cam_buffer{nullptr}
 	{
@@ -221,7 +220,7 @@ public:
 
 		// This ensures that every data point is coming in chronological order If youre failing this assert, 
 		// make sure that your data folder matches the name in offline_imu_cam/plugin.cc
-		double timestamp_in_seconds = std::chrono::duration<double, std::chrono::seconds::period>{datum->dataset_time}.count();
+		double timestamp_in_seconds = double(datum->dataset_time) * (1/1'000'000'000.);
 		assert(timestamp_in_seconds > previous_timestamp);
 		previous_timestamp = timestamp_in_seconds;
 
@@ -252,7 +251,7 @@ public:
 
 		cv::Mat img0{imu_cam_buffer->img0.value()};
 		cv::Mat img1{imu_cam_buffer->img1.value()};
-		double buffer_timestamp_seconds = std::chrono::duration_cast<double, std::chrono::seconds::period>{imu_cam_buffer->dataset_time}.count();
+		double buffer_timestamp_seconds = double(imu_cam_buffer->dataset_time) * (1/1'000'000'000.);
 		open_vins_estimator.feed_measurement_stereo(buffer_timestamp_seconds, img0, img1, 0, 1);
 
 		// Get the pose returned from SLAM
@@ -320,7 +319,6 @@ private:
 	const std::shared_ptr<switchboard> sb;
 	switchboard::writer<pose_type> _m_pose;
     switchboard::writer<imu_integrator_input> _m_imu_integrator_input;
-	time_type _m_begin;
 	State *state;
 
 	VioManagerOptions manager_params = create_params();
