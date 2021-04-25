@@ -203,6 +203,7 @@ public:
 		, _m_imu_integrator_input{sb->get_writer<imu_integrator_input>("imu_integrator_input")}
 		, open_vins_estimator{manager_params}
 		, _m_rtc{pb->lookup_impl<realtime_clock>()}
+		// , _m_cam{sb->get_reader<cam_type>("cam")}
 		, _m_cam{sb->get_buffered_reader<cam_type>("cam")}
 	{
 		_m_pose.put(new (_m_pose.allocate()) pose_type{
@@ -351,6 +352,7 @@ private:
 	double previous_timestamp = 0.0;
 	bool isUninitialized = true;
 	std::shared_ptr<realtime_clock> _m_rtc;
+	// switchboard::reader<cam_type> _m_cam;
 	switchboard::buffered_reader<cam_type> _m_cam;
 
 };
