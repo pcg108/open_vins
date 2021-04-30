@@ -267,6 +267,8 @@ public:
 
 	   }
 
+		CPU_TIMER_TIME_BLOCK("cam");
+
 		cv::Mat img0 = cv::Mat{cam_buffer->img0};
 		cv::Mat img1 = cv::Mat{cam_buffer->img1};
 		double buffer_timestamp_seconds = double(cam_buffer->dataset_time) / NANO_SEC.count();
