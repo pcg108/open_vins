@@ -216,9 +216,12 @@ public:
 
 	virtual void start() override {
 		plugin::start();
-		sb->schedule<imu_type>(id, "imu", [&](switchboard::ptr<const imu_type> datum, std::size_t iteration_no) {
+		auto& thread = sb->schedule<imu_type>(id, "imu", [&](switchboard::ptr<const imu_type> datum, std::size_t iteration_no) {
 			this->feed_imu_cam(datum, iteration_no);
 		});
+		if (is_priority_scheduler()) {
+			set_priority(thread.get_pid(), 2);
+		}
 	}
 
 	void feed_imu_cam(switchboard::ptr<const imu_type> datum, std::size_t iteration_no) {
