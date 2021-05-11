@@ -244,7 +244,7 @@ public:
 
 		cv::Mat img0{imu_cam_buffer->img0.value()};
 		cv::Mat img1{imu_cam_buffer->img1.value()};
-		open_vins_estimator.feed_measurement_stereo(buffer_timestamp_seconds, img0, img1, 0, 1);
+		open_vins_estimator.feed_measurement_stereo(duration2double(imu_cam_buffer->time.time_since_epoch()), img0, img1, 0, 1);
 
 		// Get the pose returned from SLAM
 		state = open_vins_estimator.get_state();
