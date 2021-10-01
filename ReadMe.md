@@ -174,4 +174,4 @@ You must preserve the copyright and license notices in your derivative work and 
 
 [//]: # (--- Internal ---)
 
-[10]:   ILLIXR_INSTRUCTIONS.MD
+[10]:   ILLIXR_INSTRUCTIONS.md
