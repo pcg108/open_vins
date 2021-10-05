@@ -192,7 +192,7 @@ void TrackKLT::feed_stereo(double timestamp, cv::Mat &img_leftin, cv::Mat &img_r
 
 	{
 #ifdef ILLIXR_INTEGRATION
-	CPU_TIMER_TIME_BLOCK("preform_detection");
+	CPU_TIMER_TIME_BLOCK("perform_detection");
 #endif /// ILLIXR_INTEGRATION
     // If we didn't have any successful tracks last time, just extract this time
     // This also handles, the tracking initalization on the first call to this extractor

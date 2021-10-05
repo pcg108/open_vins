@@ -186,6 +186,14 @@ public:
 		, open_vins_estimator{manager_params}
 		, imu_cam_buffer{nullptr}
 	{
+        // Disabling OpenCV threading is faster on x86 desktop but slower on
+        // jetson. Keeping this here for manual disabling.
+        // Can add a flag/parameter/environment variable here to toggle OpenCV threading.
+        // (Easiest method currently---pass the kernel name and architecture name from '/etc/os-release' to here;
+        // aarch64 + old/custom kernel + CUDA support => Jetson? See ILLIXR/scripts/install_apt_deps.sh)
+        //
+        // cv::setNumThreads(0);
+
 		sb->schedule<imu_cam_type>(get_name(), "imu_cam", [&](switchboard::ptr<const imu_cam_type> datum, std::size_t iteration_no) {
 			this->feed_imu_cam(datum, iteration_no);
 		});
