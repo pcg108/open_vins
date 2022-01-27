@@ -191,7 +191,7 @@ public:
 		, _m_rtc{pb->lookup_impl<RelativeClock>()}
 		, _m_begin{_m_rtc->now()}
 		, open_vins_estimator{manager_params}
-		, imu_cam_buffer{nullptr}
+		, _m_cam{sb->get_buffered_reader<cam_type>("cam")}
 	{
 
         // Disabling OpenCV threading is faster on x86 desktop but slower on
@@ -207,20 +207,20 @@ public:
 
 	virtual void start() override {
 		plugin::start();
-		sb->schedule<imu_cam_type>(id, "imu_cam", [&](switchboard::ptr<const imu_cam_type> datum, std::size_t iteration_no) {
+		sb->schedule<imu_type>(id, "imu", [&](switchboard::ptr<const imu_type> datum, std::size_t iteration_no) {
 			this->feed_imu_cam(datum, iteration_no);
 		});
 	}
 
 
-	void feed_imu_cam(switchboard::ptr<const imu_cam_type> datum, std::size_t iteration_no) {
+	void feed_imu_cam(switchboard::ptr<const imu_type> datum, std::size_t iteration_no) {
 		// Ensures that slam doesnt start before valid IMU readings come in
-		if (datum == NULL) {
+		if (datum == nullptr) {
 			return;
 		}
 
 		// Feed the IMU measurement. There should always be IMU data in each call to feed_imu_cam
-		assert((datum->img0.has_value() && datum->img1.has_value()) || (!datum->img0.has_value() && !datum->img1.has_value()));
+		// assert((datum->img0.has_value() && datum->img1.has_value()) || (!datum->img0.has_value() && !datum->img1.has_value()));
 		open_vins_estimator.feed_measurement_imu(duration2double(datum->time.time_since_epoch()), datum->angular_v.cast<double>(), datum->linear_a.cast<double>());
 
 		// std::cout << std::fixed << "Time of IMU/CAM: " << timestamp_in_seconds * 1e9 << " Lin a: " << 
@@ -228,12 +228,25 @@ public:
 		// 	datum->linear_a[0] << ", " << datum->linear_a[1] << ", " << datum->linear_a[2] << std::endl;
 
 		// If there is not cam data this func call, break early
-		if (!datum->img0.has_value() && !datum->img1.has_value()) {
-			return;
-		} else if (imu_cam_buffer == NULL) {
-			imu_cam_buffer = datum;
+		switchboard::ptr<const cam_type> cam;
+		// Async:
+		// cam = _m_cam.get_ro_nullable();
+		cam = _m_cam.size() == 0 ? nullptr : _m_cam.dequeue();
+		if (!cam) {
 			return;
 		}
+		if (!cam_buffer) {
+			cam_buffer = cam;
+			return;
+		}
+		/* This is necsesary in async, to make sure that cam is new
+		   In buffered, cam is new if it is present.
+		   
+		if (cam->time == cam_buffer->time) {
+			return;
+		}
+		*/
+
 
 #ifdef CV_HAS_METRICS
 		cv::metrics::setAccount(new std::string{std::to_string(iteration_no)});
@@ -244,9 +257,9 @@ public:
 #warning "No OpenCV metrics available. Please recompile OpenCV from git clone --branch 3.4.6-instrumented https://github.com/ILLIXR/opencv/. (see install_deps.sh)"
 #endif
 
-		cv::Mat img0{imu_cam_buffer->img0.value()};
-		cv::Mat img1{imu_cam_buffer->img1.value()};
-		open_vins_estimator.feed_measurement_stereo(duration2double(imu_cam_buffer->time.time_since_epoch()), img0, img1, 0, 1);
+		cv::Mat img0{cam_buffer->img0};
+		cv::Mat img1{cam_buffer->img1};
+		open_vins_estimator.feed_measurement_stereo(duration2double(cam_buffer->time.time_since_epoch()), img0, img1, 0, 1);
 
 		// Get the pose returned from SLAM
 		state = open_vins_estimator.get_state();
@@ -272,7 +285,7 @@ public:
 			}
 
 			_m_pose.put(_m_pose.allocate(
-				imu_cam_buffer->time,
+				cam_buffer->time,
 				swapped_pos,
 				swapped_rot
 			));
@@ -304,7 +317,7 @@ public:
 		// Turns out, this is no longer correct. debbugview uses it
 		// const_cast<imu_cam_type*>(imu_cam_buffer)->img0.reset();
 		// const_cast<imu_cam_type*>(imu_cam_buffer)->img1.reset();
-		imu_cam_buffer = datum;
+		cam_buffer = cam;
 	}
 
 	virtual ~slam2() override {}
@@ -320,7 +333,10 @@ private:
 	VioManagerOptions manager_params = create_params();
 	VioManager open_vins_estimator;
 
-	switchboard::ptr<const imu_cam_type> imu_cam_buffer;
+	// switchboard::ptr<const imu_cam_type> imu_cam_buffer;
+	switchboard::ptr<const cam_type> cam_buffer;
+	switchboard::buffered_reader<cam_type> _m_cam; 
+
 	bool isUninitialized = true;
 };
 
