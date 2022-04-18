@@ -189,7 +189,7 @@ public:
 		, _m_pose{sb->get_writer<pose_type>("slow_pose")}
 		, _m_imu_integrator_input{sb->get_writer<imu_integrator_input>("imu_integrator_input")}
 		, _m_rtc{pb->lookup_impl<RelativeClock>()}
-		, _m_begin{_m_rtc->now()}
+		// , _m_begin{_m_rtc->now()}
 		, open_vins_estimator{manager_params}
 		, imu_cam_buffer{nullptr}
 	{
@@ -323,7 +323,7 @@ private:
 	switchboard::writer<pose_type> _m_pose;
     switchboard::writer<imu_integrator_input> _m_imu_integrator_input;
 	std::shared_ptr<RelativeClock> _m_rtc;
-	time_point _m_begin; 
+	// time_point _m_begin; 
 	State *state;
 
 	VioManagerOptions manager_params = create_params();
