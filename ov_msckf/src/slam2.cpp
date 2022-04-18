@@ -193,11 +193,11 @@ public:
 		, open_vins_estimator{manager_params}
 		, imu_cam_buffer{nullptr}
 	{
-		_m_pose.put(_m_pose.allocate(
-			_m_rtc->now(), 
-			Eigen::Vector3f{0, 0, 0},
-			Eigen::Quaternionf{1, 0, 0, 0}
-		));
+		// _m_pose.put(_m_pose.allocate(
+		// 	_m_rtc->now(), 
+		// 	Eigen::Vector3f{0, 0, 0},
+		// 	Eigen::Quaternionf{1, 0, 0, 0}
+		// ));
 
         // Disabling OpenCV threading is faster on x86 desktop but slower on
         // jetson. Keeping this here for manual disabling.
