@@ -14,6 +14,7 @@
 #include "common/switchboard.hpp"
 #include "common/data_format.hpp"
 #include "common/phonebook.hpp"
+#include "common/relative_clock.hpp"
 
 using namespace ILLIXR;
 using namespace ov_msckf;
@@ -175,6 +176,10 @@ VioManagerOptions create_params()
 	return params;
 }
 
+duration from_seconds(double seconds) {
+	return duration{long(seconds * 1e9L)};
+}
+
 class slam2 : public plugin {
 public:
 	/* Provide handles to slam2 */
@@ -183,15 +188,9 @@ public:
 		, sb{pb->lookup_impl<switchboard>()}
 		, _m_pose{sb->get_writer<pose_type>("slow_pose")}
 		, _m_imu_integrator_input{sb->get_writer<imu_integrator_input>("imu_integrator_input")}
-		, _m_begin{std::chrono::system_clock::now()}
 		, open_vins_estimator{manager_params}
 		, imu_cam_buffer{nullptr}
 	{
-		_m_pose.put(_m_pose.allocate(
-			std::chrono::time_point<std::chrono::system_clock>{},
-			Eigen::Vector3f{0, 0, 0},
-			Eigen::Quaternionf{1, 0, 0, 0}
-		));
 
         // Disabling OpenCV threading is faster on x86 desktop but slower on
         // jetson. Keeping this here for manual disabling.
@@ -215,23 +214,12 @@ public:
 	void feed_imu_cam(switchboard::ptr<const imu_cam_type> datum, std::size_t iteration_no) {
 		// Ensures that slam doesnt start before valid IMU readings come in
 		if (datum == NULL) {
-			assert(previous_timestamp == 0);
 			return;
 		}
 
-		// This ensures that every data point is coming in chronological order If youre failing this assert, 
-		// make sure that your data folder matches the name in offline_imu_cam/plugin.cc
-		double timestamp_in_seconds = (double(datum->dataset_time) / NANO_SEC);
-		assert(timestamp_in_seconds > previous_timestamp);
-		previous_timestamp = timestamp_in_seconds;
-
 		// Feed the IMU measurement. There should always be IMU data in each call to feed_imu_cam
 		assert((datum->img0.has_value() && datum->img1.has_value()) || (!datum->img0.has_value() && !datum->img1.has_value()));
-		open_vins_estimator.feed_measurement_imu(timestamp_in_seconds, (datum->angular_v).cast<double>(), (datum->linear_a).cast<double>());
-
-		// std::cout << std::fixed << "Time of IMU/CAM: " << timestamp_in_seconds * 1e9 << " Lin a: " << 
-		// 	datum->angular_v[0] << ", " << datum->angular_v[1] << ", " << datum->angular_v[2] << ", " <<
-		// 	datum->linear_a[0] << ", " << datum->linear_a[1] << ", " << datum->linear_a[2] << std::endl;
+		open_vins_estimator.feed_measurement_imu(duration2double(datum->time.time_since_epoch()), datum->angular_v.cast<double>(), datum->linear_a.cast<double>());
 
 		// If there is not cam data this func call, break early
 		if (!datum->img0.has_value() && !datum->img1.has_value()) {
@@ -252,8 +240,7 @@ public:
 
 		cv::Mat img0{imu_cam_buffer->img0.value()};
 		cv::Mat img1{imu_cam_buffer->img1.value()};
-		double buffer_timestamp_seconds = double(imu_cam_buffer->dataset_time) / NANO_SEC;
-		open_vins_estimator.feed_measurement_stereo(buffer_timestamp_seconds, img0, img1, 0, 1);
+		open_vins_estimator.feed_measurement_stereo(duration2double(imu_cam_buffer->time.time_since_epoch()), img0, img1, 0, 1);
 
 		// Get the pose returned from SLAM
 		state = open_vins_estimator.get_state();
@@ -285,8 +272,8 @@ public:
 			));
 
 			_m_imu_integrator_input.put(_m_imu_integrator_input.allocate(
-				timestamp_in_seconds,
-				state->_calib_dt_CAMtoIMU->value()(0),
+				datum->time,
+				from_seconds(state->_calib_dt_CAMtoIMU->value()(0)),
 				imu_params{
 					.gyro_noise = 0.00016968,
 					.acc_noise = 0.002,
@@ -320,14 +307,12 @@ private:
 	const std::shared_ptr<switchboard> sb;
 	switchboard::writer<pose_type> _m_pose;
     switchboard::writer<imu_integrator_input> _m_imu_integrator_input;
-	time_type _m_begin;
 	State *state;
 
 	VioManagerOptions manager_params = create_params();
 	VioManager open_vins_estimator;
 
 	switchboard::ptr<const imu_cam_type> imu_cam_buffer;
-	double previous_timestamp = 0.0;
 	bool isUninitialized = true;
 };
 
