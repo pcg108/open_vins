@@ -189,7 +189,6 @@ public:
 		, _m_pose{sb->get_writer<pose_type>("slow_pose")}
 		, _m_imu_integrator_input{sb->get_writer<imu_integrator_input>("imu_integrator_input")}
 		, _m_rtc{pb->lookup_impl<RelativeClock>()}
-		// , _m_begin{_m_rtc->now()}
 		, open_vins_estimator{manager_params}
 		, imu_cam_buffer{nullptr}
 	{
@@ -227,14 +226,6 @@ public:
 		// Feed the IMU measurement. There should always be IMU data in each call to feed_imu_cam
 		assert((datum->img0.has_value() && datum->img1.has_value()) || (!datum->img0.has_value() && !datum->img1.has_value()));
 		open_vins_estimator.feed_measurement_imu(duration2double(datum->time.time_since_epoch()), datum->angular_v.cast<double>(), datum->linear_a.cast<double>());
-
-		// std::cout << std::fixed << "Time of IMU/CAM: " << timestamp_in_seconds * 1e9 << " Lin a: " << 
-		// 	datum->angular_v[0] << ", " << datum->angular_v[1] << ", " << datum->angular_v[2] << ", " <<
-		// 	datum->linear_a[0] << ", " << datum->linear_a[1] << ", " << datum->linear_a[2] << std::endl;
-
-		// std::cout << std::fixed << "Time of IMU/CAM: " << timestamp_in_seconds * 1e9 << " Lin a: " << 
-		// 	datum->angular_v[0] << ", " << datum->angular_v[1] << ", " << datum->angular_v[2] << ", " <<
-		// 	datum->linear_a[0] << ", " << datum->linear_a[1] << ", " << datum->linear_a[2] << std::endl;
 
 		// If there is not cam data this func call, break early
 		if (!datum->img0.has_value() && !datum->img1.has_value()) {
@@ -323,7 +314,6 @@ private:
 	switchboard::writer<pose_type> _m_pose;
     switchboard::writer<imu_integrator_input> _m_imu_integrator_input;
 	std::shared_ptr<RelativeClock> _m_rtc;
-	// time_point _m_begin; 
 	State *state;
 
 	VioManagerOptions manager_params = create_params();
