@@ -21,7 +21,7 @@ using namespace ov_msckf;
 
 // Comment in if using ZED instead of offline_imu_cam
 // TODO: Pull from config YAML file
-//#define ZED
+#define ZED
 
 VioManagerOptions create_params()
 {
@@ -186,7 +186,7 @@ public:
 	slam2(std::string name_, phonebook* pb_)
 		: plugin{name_, pb_}
 		, sb{pb->lookup_impl<switchboard>()}
-		, _m_pose{sb->get_writer<pose_type>("slow_pose")}
+		, _m_pose{sb->get_writer<pose_type_prof>("slow_pose")}
 		, _m_imu_integrator_input{sb->get_writer<imu_integrator_input>("imu_integrator_input")}
 		, open_vins_estimator{manager_params}
 		, imu_cam_buffer{nullptr}
@@ -205,13 +205,13 @@ public:
 
 	virtual void start() override {
 		plugin::start();
-		sb->schedule<imu_cam_type>(id, "imu_cam", [&](switchboard::ptr<const imu_cam_type> datum, std::size_t iteration_no) {
+		sb->schedule<imu_cam_type_prof>(id, "imu_cam", [&](switchboard::ptr<const imu_cam_type_prof> datum, std::size_t iteration_no) {
 			this->feed_imu_cam(datum, iteration_no);
 		});
 	}
 
 
-	void feed_imu_cam(switchboard::ptr<const imu_cam_type> datum, std::size_t iteration_no) {
+	void feed_imu_cam(switchboard::ptr<const imu_cam_type_prof> datum, std::size_t iteration_no) {
 		// Ensures that slam doesnt start before valid IMU readings come in
 		if (datum == NULL) {
 			return;
@@ -267,6 +267,7 @@ public:
 
 			_m_pose.put(_m_pose.allocate(
 				imu_cam_buffer->time,
+				imu_cam_buffer->start_time,
 				swapped_pos,
 				swapped_rot
 			));
@@ -305,14 +306,14 @@ public:
 
 private:
 	const std::shared_ptr<switchboard> sb;
-	switchboard::writer<pose_type> _m_pose;
+	switchboard::writer<pose_type_prof> _m_pose;
     switchboard::writer<imu_integrator_input> _m_imu_integrator_input;
 	State *state;
 
 	VioManagerOptions manager_params = create_params();
 	VioManager open_vins_estimator;
 
-	switchboard::ptr<const imu_cam_type> imu_cam_buffer;
+	switchboard::ptr<const imu_cam_type_prof> imu_cam_buffer;
 	bool isUninitialized = true;
 };
 
