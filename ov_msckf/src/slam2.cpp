@@ -186,11 +186,11 @@ public:
 	slam2(std::string name_, phonebook* pb_)
 		: plugin{name_, pb_}
 		, sb{pb->lookup_impl<switchboard>()}
+		, _m_rtc{pb->lookup_impl<RelativeClock>()}
 		, _m_pose{sb->get_writer<pose_type>("slow_pose")}
 		, _m_imu_integrator_input{sb->get_writer<imu_integrator_input>("imu_integrator_input")}
-		, _m_rtc{pb->lookup_impl<RelativeClock>()}
-		, open_vins_estimator{manager_params}
 		, _m_cam{sb->get_buffered_reader<cam_type>("cam")}
+		, open_vins_estimator{manager_params}
 	{
 
         // Disabling OpenCV threading is faster on x86 desktop but slower on
@@ -313,17 +313,16 @@ public:
 
 private:
 	const std::shared_ptr<switchboard> sb;
-	switchboard::writer<pose_type> _m_pose;
-    switchboard::writer<imu_integrator_input> _m_imu_integrator_input;
 	std::shared_ptr<RelativeClock> _m_rtc; 
+	switchboard::writer<pose_type> _m_pose;
+	switchboard::writer<imu_integrator_input> _m_imu_integrator_input;
 	State *state;
+
+	switchboard::ptr<const cam_type> cam_buffer;
+	switchboard::buffered_reader<cam_type> _m_cam;
 
 	VioManagerOptions manager_params = create_params();
 	VioManager open_vins_estimator;
-
-	// switchboard::ptr<const imu_cam_type> imu_cam_buffer;
-	switchboard::ptr<const cam_type> cam_buffer;
-	switchboard::buffered_reader<cam_type> _m_cam;
 };
 
 PLUGIN_MAIN(slam2)
