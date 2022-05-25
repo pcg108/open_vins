@@ -282,6 +282,7 @@ public:
 			_m_pose.put(_m_pose.allocate(
 				imu_cam_buffer->time,
 				imu_cam_buffer->start_time,
+				imu_cam_buffer->rec_time,
 				// swapped_pos,
 				// swapped_rot
 				Eigen::Vector3f{true_input_values->position.x(), true_input_values->position.y(), true_input_values->position.z()},
