@@ -291,6 +291,17 @@ public:
 			));
 		}
 
+        std::ofstream slam_csv;
+        slam_csv.open(boost::filesystem::current_path().string() + "/recorded_data/slam.csv", std::ios::app);
+        slam_csv << datum->time.time_since_epoch().count() << ","
+                  << pose.x() << ","
+                  << pose.y() << ","
+                  << pose.z() << ","
+                  << swapped_rot.w() << ","
+                  << swapped_rot.x() << ","
+                  << swapped_rot.y() << ","
+                  << swapped_rot.z() << std::endl;
+
 		// I know, a priori, nobody other plugins subscribe to this topic
 		// Therefore, I can const the cast away, and delete stuff
 		// This fixes a memory leak.
