@@ -22,7 +22,7 @@ using namespace ov_msckf;
 
 // Comment in if using ZED instead of offline_imu_cam
 // TODO: Pull from config YAML file
-#define ZED
+// #define ZED
 
 VioManagerOptions create_params()
 {
@@ -188,7 +188,7 @@ public:
 		: plugin{name_, pb_}
 		, sb{pb->lookup_impl<switchboard>()}
 		, _m_pose{sb->get_writer<pose_type_prof>("slow_pose")}
-		, _m_true_imu_integrator_input{sb->get_reader<imu_integrator_input>("true_int_input")}
+		// , _m_true_imu_integrator_input{sb->get_reader<imu_integrator_input>("true_int_input")}
 		, _m_imu_integrator_input{sb->get_writer<imu_integrator_input>("imu_integrator_input")}
 		, open_vins_estimator{manager_params}
 		, imu_cam_buffer{nullptr}
@@ -214,7 +214,8 @@ public:
 
 
 	void feed_imu_cam(switchboard::ptr<const imu_cam_type_prof> datum, std::size_t iteration_no) {
-		auto true_input_values = _m_true_imu_integrator_input.get_ro_nullable();
+		unsigned long long curr_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+		// auto true_input_values = _m_true_imu_integrator_input.get_ro_nullable();
 
 		// Ensures that slam doesnt start before valid IMU readings come in
 		if (datum == NULL) {
@@ -247,22 +248,22 @@ public:
 		open_vins_estimator.feed_measurement_stereo(duration2double(imu_cam_buffer->time.time_since_epoch()), img0, img1, 0, 1);
 
 		// Get the pose returned from SLAM
-		// state = open_vins_estimator.get_state();
-		// Eigen::Vector4d quat = state->_imu->quat();
-		// Eigen::Vector3d vel = state->_imu->vel();
-		// Eigen::Vector3d pose = state->_imu->pos();
+		state = open_vins_estimator.get_state();
+		Eigen::Vector4d quat = state->_imu->quat();
+		Eigen::Vector3d vel = state->_imu->vel();
+		Eigen::Vector3d pose = state->_imu->pos();
 
-		// Eigen::Vector3f swapped_pos = Eigen::Vector3f{float(pose(0)), float(pose(1)), float(pose(2))};
-		// Eigen::Quaternionf swapped_rot = Eigen::Quaternionf{float(quat(3)), float(quat(0)), float(quat(1)), float(quat(2))};
-		// Eigen::Quaterniond swapped_rot2 = Eigen::Quaterniond{(quat(3)), (quat(0)), (quat(1)), (quat(2))};
+		Eigen::Vector3f swapped_pos = Eigen::Vector3f{float(pose(0)), float(pose(1)), float(pose(2))};
+		Eigen::Quaternionf swapped_rot = Eigen::Quaternionf{float(quat(3)), float(quat(0)), float(quat(1)), float(quat(2))};
+		Eigen::Quaterniond swapped_rot2 = Eigen::Quaterniond{(quat(3)), (quat(0)), (quat(1)), (quat(2))};
 
-       	// assert(isfinite(swapped_rot.w()));
-        // assert(isfinite(swapped_rot.x()));
-        // assert(isfinite(swapped_rot.y()));
-        // assert(isfinite(swapped_rot.z()));
-        // assert(isfinite(swapped_pos[0]));
-        // assert(isfinite(swapped_pos[1]));
-        // assert(isfinite(swapped_pos[2]));
+       	assert(isfinite(swapped_rot.w()));
+        assert(isfinite(swapped_rot.x()));
+        assert(isfinite(swapped_rot.y()));
+        assert(isfinite(swapped_rot.z()));
+        assert(isfinite(swapped_pos[0]));
+        assert(isfinite(swapped_pos[1]));
+        assert(isfinite(swapped_pos[2]));
 
 		// std::cout << std::fixed << datum->time.time_since_epoch().count() << ","
         //           << swapped_pos.x() << ","
@@ -272,6 +273,11 @@ public:
         //           << swapped_rot.x() << ","
         //           << swapped_rot.y() << ","
         //           << swapped_rot.z() << std::endl;
+
+		unsigned long long updated_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+		double secs = (curr_time - updated_time) / 1e9;
+		std::cout << "Seconds to run VIO (In plugin) (ms): " << secs * 1e3 << std::endl;
+
 
 		if (open_vins_estimator.initialized()) {
 			if (isUninitialized) {
@@ -283,22 +289,42 @@ public:
 				imu_cam_buffer->time,
 				imu_cam_buffer->start_time,
 				imu_cam_buffer->rec_time,
-				// swapped_pos,
-				// swapped_rot
-				Eigen::Vector3f{true_input_values->position.x(), true_input_values->position.y(), true_input_values->position.z()},
-				Eigen::Quaternionf{true_input_values->quat.w(), true_input_values->quat.x(), true_input_values->quat.y(), true_input_values->quat.z()}
+				swapped_pos,
+				swapped_rot
+				// The following are for GT
+				// Eigen::Vector3f{true_input_values->position.x(), true_input_values->position.y(), true_input_values->position.z()},
+				// Eigen::Quaternionf{true_input_values->quat.w(), true_input_values->quat.x(), true_input_values->quat.y(), true_input_values->quat.z()}
 			));
 
 			_m_imu_integrator_input.put(_m_imu_integrator_input.allocate(
 				datum->time,
-                true_input_values->t_offset,
-                true_input_values->params,
-                true_input_values->biasAcc,
-				true_input_values->biasGyro,
-                true_input_values->position,
-				true_input_values->velocity,
-                true_input_values->quat
-			));
+				from_seconds(state->_calib_dt_CAMtoIMU->value()(0)),
+				imu_params{
+					.gyro_noise = 0.00016968,
+					.acc_noise = 0.002,
+					.gyro_walk = 1.9393e-05,
+					.acc_walk = 0.003,
+					.n_gravity = Eigen::Matrix<double,3,1>(0.0, 0.0, -9.81),
+					.imu_integration_sigma = 1.0,
+					.nominal_rate = 200.0,
+				},
+				state->_imu->bias_a(),
+				state->_imu->bias_g(),
+				pose,
+				vel,
+				swapped_rot2
+			));	
+
+			// _m_imu_integrator_input.put(_m_imu_integrator_input.allocate(
+			// 	datum->time,
+            //     true_input_values->t_offset,
+            //     true_input_values->params,
+            //     true_input_values->biasAcc,
+			// 	true_input_values->biasGyro,
+            //     true_input_values->position,
+			// 	true_input_values->velocity,
+            //     true_input_values->quat
+			// ));
 		}
 
 		// I know, a priori, nobody other plugins subscribe to this topic
@@ -315,10 +341,10 @@ public:
 
 private:
 	const std::shared_ptr<switchboard> sb;
-	switchboard::reader<imu_integrator_input> _m_true_imu_integrator_input;
+	// switchboard::reader<imu_integrator_input> _m_true_imu_integrator_input;
 	switchboard::writer<pose_type_prof> _m_pose;
     switchboard::writer<imu_integrator_input> _m_imu_integrator_input;
-	// State *state;
+	State *state;
 
 	VioManagerOptions manager_params = create_params();
 	VioManager open_vins_estimator;
