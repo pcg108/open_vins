@@ -275,8 +275,8 @@ public:
         //           << swapped_rot.z() << std::endl;
 
 		unsigned long long updated_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-		double secs = (curr_time - updated_time) / 1e9;
-		std::cout << "Seconds to run VIO (In plugin) (ms): " << secs * 1e3 << std::endl;
+		double secs = (updated_time - curr_time) / 1e9;
+		std::cout << datum->frame_id << ": Seconds to run VIO (In plugin) (ms): " << secs * 1e3 << std::endl;
 
 
 		if (open_vins_estimator.initialized()) {
@@ -286,6 +286,7 @@ public:
 
 			// Using the GT values right now
 			_m_pose.put(_m_pose.allocate(
+				datum->frame_id,
 				imu_cam_buffer->time,
 				imu_cam_buffer->start_time,
 				imu_cam_buffer->rec_time,
