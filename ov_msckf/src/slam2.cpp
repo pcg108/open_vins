@@ -188,7 +188,6 @@ public:
 		: plugin{name_, pb_}
 		, sb{pb->lookup_impl<switchboard>()}
 		, _m_pose{sb->get_writer<pose_type_prof>("slow_pose")}
-		// , _m_true_imu_integrator_input{sb->get_reader<imu_integrator_input>("true_int_input")}
 		, _m_imu_integrator_input{sb->get_writer<imu_integrator_input>("imu_integrator_input")}
 		, open_vins_estimator{manager_params}
 		, imu_cam_buffer{nullptr}
@@ -215,7 +214,6 @@ public:
 
 	void feed_imu_cam(switchboard::ptr<const imu_cam_type_prof> datum, std::size_t iteration_no) {
 		unsigned long long curr_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-		// auto true_input_values = _m_true_imu_integrator_input.get_ro_nullable();
 
 		// Ensures that slam doesnt start before valid IMU readings come in
 		if (datum == NULL) {
@@ -284,7 +282,6 @@ public:
 				isUninitialized = false;
 			}
 
-			// Using the GT values right now
 			_m_pose.put(_m_pose.allocate(
 				datum->frame_id,
 				imu_cam_buffer->time,
@@ -292,9 +289,6 @@ public:
 				imu_cam_buffer->rec_time,
 				swapped_pos,
 				swapped_rot
-				// The following are for GT
-				// Eigen::Vector3f{true_input_values->position.x(), true_input_values->position.y(), true_input_values->position.z()},
-				// Eigen::Quaternionf{true_input_values->quat.w(), true_input_values->quat.x(), true_input_values->quat.y(), true_input_values->quat.z()}
 			));
 
 			_m_imu_integrator_input.put(_m_imu_integrator_input.allocate(
@@ -315,17 +309,6 @@ public:
 				vel,
 				swapped_rot2
 			));	
-
-			// _m_imu_integrator_input.put(_m_imu_integrator_input.allocate(
-			// 	datum->time,
-            //     true_input_values->t_offset,
-            //     true_input_values->params,
-            //     true_input_values->biasAcc,
-			// 	true_input_values->biasGyro,
-            //     true_input_values->position,
-			// 	true_input_values->velocity,
-            //     true_input_values->quat
-			// ));
 		}
 
 		// I know, a priori, nobody other plugins subscribe to this topic
@@ -342,7 +325,6 @@ public:
 
 private:
 	const std::shared_ptr<switchboard> sb;
-	// switchboard::reader<imu_integrator_input> _m_true_imu_integrator_input;
 	switchboard::writer<pose_type_prof> _m_pose;
     switchboard::writer<imu_integrator_input> _m_imu_integrator_input;
 	State *state;
