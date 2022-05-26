@@ -187,7 +187,8 @@ public:
 	slam2(std::string name_, phonebook* pb_)
 		: plugin{name_, pb_}
 		, sb{pb->lookup_impl<switchboard>()}
-		, _m_pose{sb->get_writer<pose_type_prof>("slow_pose")}
+		, _m_pose{sb->get_writer<pose_type>("slow_pose")}
+		, _m_pose_prof{sb->get_writer<pose_type_prof>("slow_pose_prof")}
 		, _m_imu_integrator_input{sb->get_writer<imu_integrator_input>("imu_integrator_input")}
 		, open_vins_estimator{manager_params}
 		, imu_cam_buffer{nullptr}
@@ -276,6 +277,12 @@ public:
 		double secs = (updated_time - curr_time) / 1e9;
 		std::cout << datum->frame_id << ": Seconds to run VIO (In plugin) (ms): " << secs * 1e3 << std::endl;
 
+		// Slow down slow pose push
+		counter++;
+		if (counter % 4 != 0) {
+			imu_cam_buffer = datum;
+			return;
+		}
 
 		if (open_vins_estimator.initialized()) {
 			if (isUninitialized) {
@@ -283,10 +290,17 @@ public:
 			}
 
 			_m_pose.put(_m_pose.allocate(
+				imu_cam_buffer->time,
+				swapped_pos,
+				swapped_rot
+			));
+
+			_m_pose_prof.put(_m_pose_prof.allocate(
 				datum->frame_id,
 				imu_cam_buffer->time,
 				imu_cam_buffer->start_time,
 				imu_cam_buffer->rec_time,
+				imu_cam_buffer->dataset_time,
 				swapped_pos,
 				swapped_rot
 			));
@@ -336,9 +350,11 @@ public:
 
 private:
 	const std::shared_ptr<switchboard> sb;
-	switchboard::writer<pose_type_prof> _m_pose;
+	switchboard::writer<pose_type> _m_pose;
+	switchboard::writer<pose_type_prof> _m_pose_prof;
     switchboard::writer<imu_integrator_input> _m_imu_integrator_input;
 	State *state;
+	int counter = 0;
 
 	VioManagerOptions manager_params = create_params();
 	VioManager open_vins_estimator;
