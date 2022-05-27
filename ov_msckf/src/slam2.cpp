@@ -278,11 +278,11 @@ public:
 		std::cout << datum->frame_id << ": Seconds to run VIO (In plugin) (ms): " << secs * 1e3 << std::endl;
 
 		// Slow down slow pose push
-		counter++;
-		if (counter % 4 != 0) {
-			imu_cam_buffer = datum;
-			return;
-		}
+		// counter++;
+		// if (counter % 4 != 0) {
+		// 	imu_cam_buffer = datum;
+		// 	return;
+		// }
 
 		if (open_vins_estimator.initialized()) {
 			if (isUninitialized) {
