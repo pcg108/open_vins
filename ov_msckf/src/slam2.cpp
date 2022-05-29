@@ -1,4 +1,6 @@
 #include <functional>
+#include <filesystem>
+#include <fstream>
 
 #include <opencv/cv.hpp>
 #include <opencv2/core/core.hpp>
@@ -201,7 +203,10 @@ public:
 #ifdef CV_HAS_METRICS
 		cv::metrics::setAccount(new std::string{"-1"});
 #endif
-
+		if (!std::filesystem::create_directory(data_path)) {
+            std::cerr << "Failed to create data directory.";
+		}
+		vio_time.open(data_path + "/vio_time.csv");
 	}
 
 
@@ -275,7 +280,7 @@ public:
 
 		unsigned long long updated_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		double secs = (updated_time - curr_time) / 1e9;
-		std::cout << datum->frame_id << ": Seconds to run VIO (In plugin) (ms): " << secs * 1e3 << std::endl;
+		vio_time << datum->frame_id << "," << datum->start_time.time_since_epoch().count() << "," << secs * 1e3 << std::endl;
 
 		// Slow down slow pose push
 		counter++;
@@ -349,6 +354,9 @@ public:
 	virtual ~slam2() override {}
 
 private:
+	const std::string data_path = std::filesystem::current_path().string() + "/recorded_data";
+    std::ofstream vio_time;
+
 	const std::shared_ptr<switchboard> sb;
 	switchboard::writer<pose_type> _m_pose;
 	switchboard::writer<pose_type_prof> _m_pose_prof;
