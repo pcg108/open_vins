@@ -24,7 +24,7 @@ using namespace ov_msckf;
 
 // Comment in if using ZED instead of offline_imu_cam
 // TODO: Pull from config YAML file
-// #define ZED
+#define ZED
 
 VioManagerOptions create_params()
 {
@@ -201,6 +201,7 @@ public:
         // cv::setNumThreads(0);
 
 #ifdef CV_HAS_METRICS
+		std::cerr << "OPEN CV HAS METRICS IS SET OLAJSDKLFJAKSDJFKASJDFKAJSDFKJASDKFJASKDFJASK" << std::endl;
 		cv::metrics::setAccount(new std::string{"-1"});
 #endif
 		if (!std::filesystem::create_directory(data_path)) {
@@ -238,14 +239,15 @@ public:
 			return;
 		}
 
-#ifdef CV_HAS_METRICS
-		cv::metrics::setAccount(new std::string{std::to_string(iteration_no)});
-		if (iteration_no % 20 == 0) {
-			cv::metrics::dump();
-		}
-#else
-#warning "No OpenCV metrics available. Please recompile OpenCV from git clone --branch 3.4.6-instrumented https://github.com/ILLIXR/opencv/. (see install_deps.sh)"
-#endif
+// #ifdef CV_HAS_METRICS
+		cv::metrics::setAccount(new std::string{std::to_string(counter_2)});
+		// if (iteration_no % 20 == 0) {
+		cv::metrics::dump();
+		counter_2++;
+		// }
+// #else
+// #warning "No OpenCV metrics available. Please recompile OpenCV from git clone --branch 3.4.6-instrumented https://github.com/ILLIXR/opencv/. (see install_deps.sh)"
+// #endif
 
 		cv::Mat img0{imu_cam_buffer->img0.value()};
 		cv::Mat img1{imu_cam_buffer->img1.value()};
@@ -283,11 +285,11 @@ public:
 		vio_time << datum->frame_id << "," << datum->start_time.time_since_epoch().count() << "," << secs * 1e3 << std::endl;
 
 		// Slow down slow pose push
-		counter++;
-		if (counter % 4 != 0) {
-			imu_cam_buffer = datum;
-			return;
-		}
+		// counter++;
+		// if (counter % 4 != 0) {
+		// 	imu_cam_buffer = datum;
+		// 	return;
+		// }
 
 		if (open_vins_estimator.initialized()) {
 			if (isUninitialized) {
@@ -362,7 +364,8 @@ private:
 	switchboard::writer<pose_type_prof> _m_pose_prof;
     switchboard::writer<imu_integrator_input> _m_imu_integrator_input;
 	State *state;
-	int counter = 0;
+	// int counter = 0;
+	int counter_2 = 0;
 
 	VioManagerOptions manager_params = create_params();
 	VioManager open_vins_estimator;
