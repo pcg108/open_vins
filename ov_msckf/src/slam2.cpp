@@ -24,7 +24,7 @@ using namespace ov_msckf;
 
 // Comment in if using ZED instead of offline_imu_cam
 // TODO: Pull from config YAML file
-#define ZED
+// #define ZED
 
 VioManagerOptions create_params()
 {
@@ -208,6 +208,8 @@ public:
             std::cerr << "Failed to create data directory.";
 		}
 		vio_time.open(data_path + "/vio_time.csv");
+
+        slam_csv.open(boost::filesystem::current_path().string() + "/recorded_data/slam.csv", std::ios::app);
 	}
 
 
@@ -291,6 +293,15 @@ public:
 		// 	return;
 		// }
 
+		slam_csv << datum->time.time_since_epoch().count() << ","
+                  << swapped_pos.x() << ","
+                  << swapped_pos.y() << ","
+                  << swapped_pos.z() << ","
+                  << swapped_rot.w() << ","
+                  << swapped_rot.x() << ","
+                  << swapped_rot.y() << ","
+                  << swapped_rot.z() << std::endl;
+
 		if (open_vins_estimator.initialized()) {
 			if (isUninitialized) {
 				isUninitialized = false;
@@ -332,17 +343,6 @@ public:
 			));	
 		}
 
-        std::ofstream slam_csv;
-        slam_csv.open(boost::filesystem::current_path().string() + "/recorded_data/slam.csv", std::ios::app);
-        slam_csv << datum->time.time_since_epoch().count() << ","
-                  << pose.x() << ","
-                  << pose.y() << ","
-                  << pose.z() << ","
-                  << swapped_rot.w() << ","
-                  << swapped_rot.x() << ","
-                  << swapped_rot.y() << ","
-                  << swapped_rot.z() << std::endl;
-
 		// I know, a priori, nobody other plugins subscribe to this topic
 		// Therefore, I can const the cast away, and delete stuff
 		// This fixes a memory leak.
@@ -358,6 +358,7 @@ public:
 private:
 	const std::string data_path = std::filesystem::current_path().string() + "/recorded_data";
     std::ofstream vio_time;
+	std::ofstream slam_csv;
 
 	const std::shared_ptr<switchboard> sb;
 	switchboard::writer<pose_type> _m_pose;

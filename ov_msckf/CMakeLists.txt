@@ -108,7 +108,7 @@ target_include_directories(ov_msckf_lib PUBLIC src)
 
 if (ILLIXR_INTEGRATION)
     add_library(slam2 SHARED src/slam2.cpp)
-    target_link_libraries(slam2 ov_msckf_lib ${thirdparty_libraries})
+    target_link_libraries(slam2 ov_msckf_lib ${thirdparty_libraries} stdc++fs)
 else()
     add_executable(run_illixr_msckf src/run_illixr_msckf.cpp)
     target_link_libraries(run_illixr_msckf ov_msckf_lib ${thirdparty_libraries})
