@@ -251,6 +251,11 @@ public:
 // #warning "No OpenCV metrics available. Please recompile OpenCV from git clone --branch 3.4.6-instrumented https://github.com/ILLIXR/opencv/. (see install_deps.sh)"
 // #endif
 
+		// Since we only assign 'datum' to 'imu_cam_buffer' at the end of this function,
+		// the reference count to camera images could be reduced to 0 temporarily after
+		// the feed_measure_stereo call, and the memory space could be reallocated.
+		// We use the temp to keep the reference count beyond 0.
+		auto temp = datum;
 		cv::Mat img0{imu_cam_buffer->img0.value()};
 		cv::Mat img1{imu_cam_buffer->img1.value()};
 		open_vins_estimator.feed_measurement_stereo(duration2double(imu_cam_buffer->time.time_since_epoch()), img0, img1, 0, 1);
@@ -350,7 +355,7 @@ public:
 		// Turns out, this is no longer correct. debbugview uses it
 		// const_cast<imu_cam_type*>(imu_cam_buffer)->img0.reset();
 		// const_cast<imu_cam_type*>(imu_cam_buffer)->img1.reset();
-		imu_cam_buffer = datum;
+		imu_cam_buffer = temp;
 	}
 
 	virtual ~slam2() override {}
