@@ -24,7 +24,7 @@ using namespace ov_msckf;
 
 // Comment in if using ZED instead of offline_imu_cam
 // TODO: Pull from config YAML file
-// #define ZED
+#define ZED
 
 VioManagerOptions create_params()
 {
@@ -207,9 +207,12 @@ public:
 		if (!std::filesystem::create_directory(data_path)) {
             std::cerr << "Failed to create data directory.";
 		}
+		if (!std::filesystem::create_directory(cam_path)) {
+            std::cerr << "Failed to create data directory.";
+		}
 		vio_time.open(data_path + "/vio_time.csv");
 
-        slam_csv.open(boost::filesystem::current_path().string() + "/recorded_data/slam.csv", std::ios::app);
+        slam_csv.open(boost::filesystem::current_path().string() + "/recorded_data/slam.csv");
 	}
 
 
@@ -253,6 +256,9 @@ public:
 
 		cv::Mat img0{imu_cam_buffer->img0.value()};
 		cv::Mat img1{imu_cam_buffer->img1.value()};
+		// cv::imshow("img0", img0);
+		// cv::waitKey(1);
+		// cv::imwrite(cam_path + "/cam" + std::to_string(imu_cam_buffer->frame_id) + ".png", img0);
 		open_vins_estimator.feed_measurement_stereo(duration2double(imu_cam_buffer->time.time_since_epoch()), img0, img1, 0, 1);
 
 		// Get the pose returned from SLAM
@@ -284,7 +290,7 @@ public:
 
 		unsigned long long updated_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 		double secs = (updated_time - curr_time) / 1e9;
-		vio_time << datum->frame_id << "," << datum->start_time.time_since_epoch().count() << "," << secs * 1e3 << std::endl;
+		vio_time << datum->frame_id << "," << datum->time.time_since_epoch().count() << "," << secs * 1e3 << std::endl;
 
 		// Slow down slow pose push
 		// counter++;
@@ -293,7 +299,7 @@ public:
 		// 	return;
 		// }
 
-		slam_csv << datum->time.time_since_epoch().count() << ","
+		slam_csv << imu_cam_buffer->time.time_since_epoch().count() << ","
                   << swapped_pos.x() << ","
                   << swapped_pos.y() << ","
                   << swapped_pos.z() << ","
@@ -314,7 +320,7 @@ public:
 			));
 
 			_m_pose_prof.put(_m_pose_prof.allocate(
-				datum->frame_id,
+				imu_cam_buffer->frame_id,
 				imu_cam_buffer->time,
 				imu_cam_buffer->start_time,
 				imu_cam_buffer->rec_time,
@@ -324,16 +330,16 @@ public:
 			));
 
 			_m_imu_integrator_input.put(_m_imu_integrator_input.allocate(
-				datum->time,
+				imu_cam_buffer->time,
 				from_seconds(state->_calib_dt_CAMtoIMU->value()(0)),
 				imu_params{
-					.gyro_noise = 0.00016968,
-					.acc_noise = 0.002,
-					.gyro_walk = 1.9393e-05,
-					.acc_walk = 0.003,
+					.gyro_noise = manager_params.imu_noises.sigma_w,
+					.acc_noise = manager_params.imu_noises.sigma_a,
+					.gyro_walk = manager_params.imu_noises.sigma_wb,
+					.acc_walk = manager_params.imu_noises.sigma_ab,
 					.n_gravity = Eigen::Matrix<double,3,1>(0.0, 0.0, -9.81),
 					.imu_integration_sigma = 1.0,
-					.nominal_rate = 200.0,
+					.nominal_rate = 500.0,
 				},
 				state->_imu->bias_a(),
 				state->_imu->bias_g(),
@@ -341,6 +347,10 @@ public:
 				vel,
 				swapped_rot2
 			));	
+			// params.imu_noises.sigma_a = 0.00395942;  // Accelerometer noise
+			// params.imu_noises.sigma_ab = 0.00072014; // Accelerometer random walk
+			// params.imu_noises.sigma_w = 0.00024213;  // Gyroscope noise
+			// params.imu_noises.sigma_wb = 1.9393e-05; // Gyroscope random walk
 		}
 
 		// I know, a priori, nobody other plugins subscribe to this topic
@@ -357,6 +367,8 @@ public:
 
 private:
 	const std::string data_path = std::filesystem::current_path().string() + "/recorded_data";
+
+	const std::string cam_path = std::filesystem::current_path().string() + "/cam0";
     std::ofstream vio_time;
 	std::ofstream slam_csv;
 
