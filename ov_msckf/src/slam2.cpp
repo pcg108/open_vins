@@ -207,9 +207,6 @@ public:
 		if (!std::filesystem::create_directory(data_path)) {
             std::cerr << "Failed to create data directory.";
 		}
-		if (!std::filesystem::create_directory(cam_path)) {
-            std::cerr << "Failed to create data directory.";
-		}
 		vio_time.open(data_path + "/vio_time.csv");
 
         slam_csv.open(boost::filesystem::current_path().string() + "/recorded_data/slam.csv");
@@ -258,7 +255,8 @@ public:
 		cv::Mat img1{imu_cam_buffer->img1.value()};
 		// cv::imshow("img0", img0);
 		// cv::waitKey(1);
-		// cv::imwrite(cam_path + "/cam" + std::to_string(imu_cam_buffer->frame_id) + ".png", img0);
+		// cv::imshow("img1", img1);
+		// cv::waitKey(1);
 		open_vins_estimator.feed_measurement_stereo(duration2double(imu_cam_buffer->time.time_since_epoch()), img0, img1, 0, 1);
 
 		// Get the pose returned from SLAM
@@ -289,8 +287,10 @@ public:
         //           << swapped_rot.z() << std::endl;
 
 		unsigned long long updated_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-		double secs = (updated_time - curr_time) / 1e9;
-		vio_time << datum->frame_id << "," << datum->time.time_since_epoch().count() << "," << secs * 1e3 << std::endl;
+		// double secs = (updated_time - curr_time) / 1e9;
+		// vio_time << datum->frame_id << "," << datum->time.time_since_epoch().count() << "," << secs * 1e3 << std::endl;
+		vio_timestamps.push_back(datum->time.time_since_epoch().count());
+		vio_durations.push_back((updated_time - curr_time) / 1e6);
 
 		// Slow down slow pose push
 		// counter++;
@@ -339,14 +339,15 @@ public:
 				swapped_rot2
 			));	
 
-			slam_csv << imu_cam_buffer->time.time_since_epoch().count() << ","
-				<< swapped_pos.x() << ","
-				<< swapped_pos.y() << ","
-				<< swapped_pos.z() << ","
-				<< swapped_rot.w() << ","
-				<< swapped_rot.x() << ","
-				<< swapped_rot.y() << ","
-				<< swapped_rot.z() << std::endl;
+			// slam_csv << imu_cam_buffer->time.time_since_epoch().count() << ","
+			// 	<< swapped_pos.x() << ","
+			// 	<< swapped_pos.y() << ","
+			// 	<< swapped_pos.z() << ","
+			// 	<< swapped_rot.w() << ","
+			// 	<< swapped_rot.x() << ","
+			// 	<< swapped_rot.y() << ","
+			// 	<< swapped_rot.z() << std::endl;
+			poses.push_back(pose_type(imu_cam_buffer->time, swapped_pos, swapped_rot));
 			// params.imu_noises.sigma_a = 0.00395942;  // Accelerometer noise
 			// params.imu_noises.sigma_ab = 0.00072014; // Accelerometer random walk
 			// params.imu_noises.sigma_w = 0.00024213;  // Gyroscope noise
@@ -363,12 +364,26 @@ public:
 		imu_cam_buffer = datum;
 	}
 
-	virtual ~slam2() override {}
+	virtual ~slam2() override {
+		for (pose_type p : poses) {
+			slam_csv << p.sensor_time.time_since_epoch().count() << ","
+			         << p.position.x() << ","
+					 << p.position.y() << ","
+					 << p.position.z() << ","
+					 << p.orientation.w() << ","
+					 << p.orientation.x() << ","
+					 << p.orientation.y() << ","
+					 << p.orientation.z() << std::endl;
+		}
+
+		for (int i = 0; i < vio_timestamps.size(); i++) {
+			vio_time << i+1 << "," << vio_timestamps[i] << "," << vio_durations[i] << std::endl;
+		}
+	}
 
 private:
 	const std::string data_path = std::filesystem::current_path().string() + "/recorded_data";
 
-	const std::string cam_path = std::filesystem::current_path().string() + "/cam0";
     std::ofstream vio_time;
 	std::ofstream slam_csv;
 
@@ -385,6 +400,12 @@ private:
 
 	switchboard::ptr<const imu_cam_type_prof> imu_cam_buffer;
 	bool isUninitialized = true;
+
+	std::vector<pose_type> poses;
+
+	std::vector<long> vio_timestamps;
+	std::vector<double> vio_durations;
+
 };
 
 PLUGIN_MAIN(slam2)
