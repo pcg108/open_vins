@@ -24,7 +24,7 @@ using namespace ov_msckf;
 
 // Comment in if using ZED instead of offline_imu_cam
 // TODO: Pull from config YAML file
-// #define ZED
+#define ZED
 
 VioManagerOptions create_params()
 {
@@ -339,15 +339,15 @@ public:
 				swapped_rot2
 			));	
 
-			// slam_csv << imu_cam_buffer->time.time_since_epoch().count() << ","
-			// 	<< swapped_pos.x() << ","
-			// 	<< swapped_pos.y() << ","
-			// 	<< swapped_pos.z() << ","
-			// 	<< swapped_rot.w() << ","
-			// 	<< swapped_rot.x() << ","
-			// 	<< swapped_rot.y() << ","
-			// 	<< swapped_rot.z() << std::endl;
-			poses.push_back(pose_type(imu_cam_buffer->time, swapped_pos, swapped_rot));
+			slam_csv << imu_cam_buffer->time.time_since_epoch().count() << ","
+				<< swapped_pos.x() << ","
+				<< swapped_pos.y() << ","
+				<< swapped_pos.z() << ","
+				<< swapped_rot.w() << ","
+				<< swapped_rot.x() << ","
+				<< swapped_rot.y() << ","
+				<< swapped_rot.z() << std::endl;
+			// poses.push_back(pose_type(imu_cam_buffer->time, swapped_pos, swapped_rot));
 			// params.imu_noises.sigma_a = 0.00395942;  // Accelerometer noise
 			// params.imu_noises.sigma_ab = 0.00072014; // Accelerometer random walk
 			// params.imu_noises.sigma_w = 0.00024213;  // Gyroscope noise
@@ -364,22 +364,22 @@ public:
 		imu_cam_buffer = datum;
 	}
 
-	virtual ~slam2() override {
-		for (pose_type p : poses) {
-			slam_csv << p.sensor_time.time_since_epoch().count() << ","
-			         << p.position.x() << ","
-					 << p.position.y() << ","
-					 << p.position.z() << ","
-					 << p.orientation.w() << ","
-					 << p.orientation.x() << ","
-					 << p.orientation.y() << ","
-					 << p.orientation.z() << std::endl;
-		}
+	// virtual ~slam2() override {
+	// 	for (pose_type p : poses) {
+	// 		slam_csv << p.sensor_time.time_since_epoch().count() << ","
+	// 		         << p.position.x() << ","
+	// 				 << p.position.y() << ","
+	// 				 << p.position.z() << ","
+	// 				 << p.orientation.w() << ","
+	// 				 << p.orientation.x() << ","
+	// 				 << p.orientation.y() << ","
+	// 				 << p.orientation.z() << std::endl;
+	// 	}
 
-		for (int i = 0; i < vio_timestamps.size(); i++) {
-			vio_time << i+1 << "," << vio_timestamps[i] << "," << vio_durations[i] << std::endl;
-		}
-	}
+	// 	for (int i = 0; i < vio_timestamps.size(); i++) {
+	// 		vio_time << i+1 << "," << vio_timestamps[i] << "," << vio_durations[i] << std::endl;
+	// 	}
+	// }
 
 private:
 	const std::string data_path = std::filesystem::current_path().string() + "/recorded_data";
