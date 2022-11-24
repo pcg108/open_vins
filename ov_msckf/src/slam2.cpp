@@ -219,7 +219,7 @@ public:
 		}
 
 		// Feed the IMU measurement. There should always be IMU data in each call to feed_imu_cam
-		open_vins_estimator.feed_measurement_imu(duration2double(datum->time.time_since_epoch()), datum->angular_v.cast<double>(), datum->linear_a.cast<double>());
+		open_vins_estimator.feed_measurement_imu(duration2double(datum->time.time_since_epoch()), datum->angular_v, datum->linear_a);
 
 		switchboard::ptr<const cam_type> cam;
 		// Buffered Async:
