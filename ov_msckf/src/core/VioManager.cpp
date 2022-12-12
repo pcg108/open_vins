@@ -455,192 +455,233 @@ void VioManager::do_feature_propagate_update(double timestamp) {
     // NOTE: this should only really be used if you want to track a lot of features, or have limited computational resources
     if((int)featsup_MSCKF.size() > state->_options.max_msckf_in_update)
         featsup_MSCKF.erase(featsup_MSCKF.begin(), featsup_MSCKF.end()-state->_options.max_msckf_in_update);
-    updaterMSCKF->update(state, featsup_MSCKF);
-    rT4 =  boost::posix_time::microsec_clock::local_time();
 
-    // Perform SLAM delay init and update
-    // NOTE: that we provide the option here to do a *sequential* update
-    // NOTE: this will be a lot faster but won't be as accurate.
-    std::vector<Feature*> feats_slam_UPDATE_TEMP;
-    while(!feats_slam_UPDATE.empty()) {
-        // Get sub vector of the features we will update with
-        std::vector<Feature*> featsup_TEMP;
-        featsup_TEMP.insert(featsup_TEMP.begin(), feats_slam_UPDATE.begin(), feats_slam_UPDATE.begin()+std::min(state->_options.max_slam_in_update,(int)feats_slam_UPDATE.size()));
-        feats_slam_UPDATE.erase(feats_slam_UPDATE.begin(), feats_slam_UPDATE.begin()+std::min(state->_options.max_slam_in_update,(int)feats_slam_UPDATE.size()));
-        // Do the update
-        updaterSLAM->update(state, featsup_TEMP);
-        feats_slam_UPDATE_TEMP.insert(feats_slam_UPDATE_TEMP.end(), featsup_TEMP.begin(), featsup_TEMP.end());
-    }
-    feats_slam_UPDATE = feats_slam_UPDATE_TEMP;
-    rT5 =  boost::posix_time::microsec_clock::local_time();
-    updaterSLAM->delayed_init(state, feats_slam_DELAYED);
-    rT6 =  boost::posix_time::microsec_clock::local_time();
+    
+    /*--------------------------- Clean the features as much as possible ------------------------------*/
+    // Return if no features
+    if(featsup_MSCKF.empty())
+        return;
 
-
-    //===================================================================================
-    // Update our visualization feature set, and clean up the old features
-    //===================================================================================
-
-
-    // Save all the MSCKF features used in the update
-    good_features_MSCKF.clear();
-    for(Feature* feat : featsup_MSCKF) {
-        good_features_MSCKF.push_back(feat->p_FinG);
-        feat->to_delete = true;
+    // 0. Get all timestamps our clones are at (and thus valid measurement times)
+    std::vector<double> clonetimes;
+    for(const auto& clone_imu : state->_clones_IMU) {
+        clonetimes.emplace_back(clone_imu.first);
     }
 
-    // Remove features that where used for the update from our extractors at the last timestep
-    // This allows for measurements to be used in the future if they failed to be used this time
-    // Note we need to do this before we feed a new image, as we want all new measurements to NOT be deleted
-    trackFEATS->get_feature_database()->cleanup();
-    if(trackARUCO != nullptr) {
-        trackARUCO->get_feature_database()->cleanup();
-    }
+    // 1. Clean all feature measurements and make sure they all have valid clone times
+    auto it = featsup_MSCKF.begin();
+    while(it != featsup_MSCKF.end()) {
 
-    //===================================================================================
-    // Cleanup, marginalize out what we don't need any more...
-    //===================================================================================
+        // Clean the feature
+        (*it)->clean_old_measurements(clonetimes);
 
-    // First do anchor change if we are about to lose an anchor pose
-    updaterSLAM->change_anchors(state);
-
-    // Marginalize the oldest clone of the state if we are at max length
-    if((int)state->_clones_IMU.size() > state->_options.max_clone_size) {
-        // Cleanup any features older then the marginalization time
-        trackFEATS->get_feature_database()->cleanup_measurements(state->margtimestep());
-        if(trackARUCO != nullptr) {
-            trackARUCO->get_feature_database()->cleanup_measurements(state->margtimestep());
+        // Count how many measurements
+        int ct_meas = 0;
+        for(const auto &pair : (*it)->timestamps) {
+            ct_meas += (*it)->timestamps[pair.first].size();
         }
-        // Finally marginalize that clone
-        StateHelper::marginalize_old_clone(state);
-    }
 
-    // Finally if we are optimizing our intrinsics, update our trackers
-    if(state->_options.do_calib_camera_intrinsics) {
-        // Get vectors arrays
-        std::map<size_t, Eigen::VectorXd> cameranew_calib;
-        std::map<size_t, bool> cameranew_fisheye;
-        for(int i=0; i<state->_options.num_cameras; i++) {
-            Vec* calib = state->_cam_intrinsics.at(i);
-            bool isfish = state->_cam_intrinsics_model.at(i);
-            cameranew_calib.insert({i,calib->value()});
-            cameranew_fisheye.insert({i,isfish});
-        }
-        // Update the trackers and their databases
-        trackFEATS->set_calibration(cameranew_calib, cameranew_fisheye, true);
-        if(trackARUCO != nullptr) {
-            trackARUCO->set_calibration(cameranew_calib, cameranew_fisheye, true);
+        // Remove if we don't have enough
+        if(ct_meas < 3) {
+            (*it)->to_delete = true;
+            it = featsup_MSCKF.erase(it);
+        } else {
+            it++;
         }
     }
-    rT7 =  boost::posix_time::microsec_clock::local_time();
+
+    /* ------------------------------------------ Split this function from here ----------------------------------------------*/
+    // send featsup_MSCKF, feats_slam_UPDATE, and feats_slam_DELAYED
+    this->feats_MSCKF = featsup_MSCKF;
+    this->feats_slam_UPDATE = feats_slam_UPDATE;
+    this->feats_slam_DELAYED = feats_slam_DELAYED;
+    
+    // updaterMSCKF->update(state, featsup_MSCKF);
+    // rT4 =  boost::posix_time::microsec_clock::local_time();
+
+    // // Perform SLAM delay init and update
+    // // NOTE: that we provide the option here to do a *sequential* update
+    // // NOTE: this will be a lot faster but won't be as accurate.
+    // std::vector<Feature*> feats_slam_UPDATE_TEMP;
+    // while(!feats_slam_UPDATE.empty()) {
+    //     // Get sub vector of the features we will update with
+    //     std::vector<Feature*> featsup_TEMP;
+    //     featsup_TEMP.insert(featsup_TEMP.begin(), feats_slam_UPDATE.begin(), feats_slam_UPDATE.begin()+std::min(state->_options.max_slam_in_update,(int)feats_slam_UPDATE.size()));
+    //     feats_slam_UPDATE.erase(feats_slam_UPDATE.begin(), feats_slam_UPDATE.begin()+std::min(state->_options.max_slam_in_update,(int)feats_slam_UPDATE.size()));
+    //     // Do the update
+    //     updaterSLAM->update(state, featsup_TEMP);
+    //     feats_slam_UPDATE_TEMP.insert(feats_slam_UPDATE_TEMP.end(), featsup_TEMP.begin(), featsup_TEMP.end());
+    // }
+    // feats_slam_UPDATE = feats_slam_UPDATE_TEMP;
+    // rT5 =  boost::posix_time::microsec_clock::local_time();
+    // updaterSLAM->delayed_init(state, feats_slam_DELAYED);
+    // rT6 =  boost::posix_time::microsec_clock::local_time();
 
 
-    //===================================================================================
-    // Debug info, and stats tracking
-    //===================================================================================
-
-    // Get timing statitics information
-    double time_track = (rT2-rT1).total_microseconds() * 1e-3;
-    double time_prop = (rT3-rT2).total_microseconds() * 1e-3;
-    double time_msckf = (rT4-rT3).total_microseconds() * 1e-3;
-    double time_slam_update = (rT5-rT4).total_microseconds() * 1e-3;
-    double time_slam_delay = (rT6-rT5).total_microseconds() * 1e-3;
-    double time_marg = (rT7-rT6).total_microseconds() * 1e-3;
-    double time_total = (rT7-rT1).total_microseconds() * 1e-3;
-
-#ifndef NDEBUG
-    // Timing information
-    printf(BLUE "[TIME]: %.4f ms for tracking\n" RESET, time_track);
-    printf(BLUE "[TIME]: %.4f ms for propagation\n" RESET, time_prop);
-    printf(BLUE "[TIME]: %.4f ms for MSCKF update (%d features)\n" RESET, time_msckf, (int)featsup_MSCKF.size());
-    if(state->_options.max_slam_features > 0) {
-        printf(BLUE "[TIME]: %.4f ms for SLAM update (%d feats)\n" RESET, time_slam_update, (int)feats_slam_UPDATE.size());
-        printf(BLUE "[TIME]: %.4f ms for SLAM delayed init (%d feats)\n" RESET, time_slam_delay, (int)feats_slam_DELAYED.size());
-    }
-    printf(BLUE "[TIME]: %.4f ms for marginalization (%d clones in state)\n" RESET, time_marg, (int)state->_clones_IMU.size());
-    printf(BLUE "[TIME]: %.4f ms for total\n" RESET, time_total);
-#endif
-
-    // Keep track of average
-    total_images++;
-    total_tracking_time += time_track;
-    total_filter_time += (time_total - time_track);
-    total_frame_time += time_total;
-
-#ifndef NDEBUG
-    // Average time breakdown between frontend and backend
-    printf(GREEN "[AVG-TIME]: %.4f ms for tracking\n" RESET, total_tracking_time / (double) total_images);
-    printf(GREEN "[AVG-TIME]: %.4f ms for filter\n" RESET, total_filter_time / (double) total_images);
-    printf(GREEN "[AVG-TIME]: %.4f ms for total\n" RESET, total_frame_time / (double) total_images);
-#endif
-
-    // Finally if we are saving stats to file, lets save it to file
-    if(params.record_timing_information && of_statistics.is_open()) {
-        // We want to publish in the IMU clock frame
-        // The timestamp in the state will be the last camera time
-        double t_ItoC = state->_calib_dt_CAMtoIMU->value()(0);
-        double timestamp_inI = state->_timestamp + t_ItoC;
-        // Append to the file
-        of_statistics << std::fixed << std::setprecision(15)
-                      << timestamp_inI << ","
-                      << std::fixed << std::setprecision(5)
-                      << time_track << "," << time_prop << "," << time_msckf << ",";
-        if(state->_options.max_slam_features > 0) {
-            of_statistics << time_slam_update << "," << time_slam_delay << ",";
-        }
-        of_statistics << time_marg << "," << time_total << std::endl;
-        of_statistics.flush();
-    }
+    // //===================================================================================
+    // // Update our visualization feature set, and clean up the old features
+    // //===================================================================================
 
 
-    // Update our distance traveled
-    if(timelastupdate != -1 && state->_clones_IMU.find(timelastupdate) != state->_clones_IMU.end()) {
-        Eigen::Matrix<double,3,1> dx = state->_imu->pos() - state->_clones_IMU.at(timelastupdate)->pos();
-        distance += dx.norm();
-    }
-    timelastupdate = timestamp;
+    // // Save all the MSCKF features used in the update
+    // good_features_MSCKF.clear();
+    // for(Feature* feat : featsup_MSCKF) {
+    //     good_features_MSCKF.push_back(feat->p_FinG);
+    //     feat->to_delete = true;
+    // }
 
-#ifndef NDEBUG
-    // Debug, print our current state
-    printf("q_GtoI = %.3f,%.3f,%.3f,%.3f | p_IinG = %.3f,%.3f,%.3f | dist = %.2f (meters)\n",
-            state->_imu->quat()(0),state->_imu->quat()(1),state->_imu->quat()(2),state->_imu->quat()(3),
-            state->_imu->pos()(0),state->_imu->pos()(1),state->_imu->pos()(2),distance);
-    printf("bg = %.4f,%.4f,%.4f | ba = %.4f,%.4f,%.4f\n",
-             state->_imu->bias_g()(0),state->_imu->bias_g()(1),state->_imu->bias_g()(2),
-             state->_imu->bias_a()(0),state->_imu->bias_a()(1),state->_imu->bias_a()(2));
-#endif
+    // // Remove features that where used for the update from our extractors at the last timestep
+    // // This allows for measurements to be used in the future if they failed to be used this time
+    // // Note we need to do this before we feed a new image, as we want all new measurements to NOT be deleted
+    // trackFEATS->get_feature_database()->cleanup();
+    // if(trackARUCO != nullptr) {
+    //     trackARUCO->get_feature_database()->cleanup();
+    // }
+
+//     //===================================================================================
+//     // Cleanup, marginalize out what we don't need any more...
+//     //===================================================================================
+
+//     // First do anchor change if we are about to lose an anchor pose
+//     updaterSLAM->change_anchors(state);
+
+//     // Marginalize the oldest clone of the state if we are at max length
+//     if((int)state->_clones_IMU.size() > state->_options.max_clone_size) {
+//         // Cleanup any features older then the marginalization time
+//         trackFEATS->get_feature_database()->cleanup_measurements(state->margtimestep());
+//         if(trackARUCO != nullptr) {
+//             trackARUCO->get_feature_database()->cleanup_measurements(state->margtimestep());
+//         }
+//         // Finally marginalize that clone
+//         StateHelper::marginalize_old_clone(state);
+//     }
+
+//     // Finally if we are optimizing our intrinsics, update our trackers
+//     if(state->_options.do_calib_camera_intrinsics) {
+//         // Get vectors arrays
+//         std::map<size_t, Eigen::VectorXd> cameranew_calib;
+//         std::map<size_t, bool> cameranew_fisheye;
+//         for(int i=0; i<state->_options.num_cameras; i++) {
+//             Vec* calib = state->_cam_intrinsics.at(i);
+//             bool isfish = state->_cam_intrinsics_model.at(i);
+//             cameranew_calib.insert({i,calib->value()});
+//             cameranew_fisheye.insert({i,isfish});
+//         }
+//         // Update the trackers and their databases
+//         trackFEATS->set_calibration(cameranew_calib, cameranew_fisheye, true);
+//         if(trackARUCO != nullptr) {
+//             trackARUCO->set_calibration(cameranew_calib, cameranew_fisheye, true);
+//         }
+//     }
+//     rT7 =  boost::posix_time::microsec_clock::local_time();
 
 
-#ifndef NDEBUG
-    // Debug for camera imu offset
-    if(state->_options.do_calib_camera_timeoffset) {
-        printf("camera-imu timeoffset = %.5f\n",state->_calib_dt_CAMtoIMU->value()(0));
-    }
-#endif
+//     //===================================================================================
+//     // Debug info, and stats tracking
+//     //===================================================================================
 
-#ifndef NDEBUG
-    // Debug for camera intrinsics
-    if(state->_options.do_calib_camera_intrinsics) {
-        for(int i=0; i<state->_options.num_cameras; i++) {
-            Vec* calib = state->_cam_intrinsics.at(i);
-            printf("cam%d intrinsics = %.3f,%.3f,%.3f,%.3f | %.3f,%.3f,%.3f,%.3f\n",(int)i,
-                     calib->value()(0),calib->value()(1),calib->value()(2),calib->value()(3),
-                     calib->value()(4),calib->value()(5),calib->value()(6),calib->value()(7));
-        }
-    }
-#endif
+//     // Get timing statitics information
+//     double time_track = (rT2-rT1).total_microseconds() * 1e-3;
+//     double time_prop = (rT3-rT2).total_microseconds() * 1e-3;
+//     double time_msckf = (rT4-rT3).total_microseconds() * 1e-3;
+//     double time_slam_update = (rT5-rT4).total_microseconds() * 1e-3;
+//     double time_slam_delay = (rT6-rT5).total_microseconds() * 1e-3;
+//     double time_marg = (rT7-rT6).total_microseconds() * 1e-3;
+//     double time_total = (rT7-rT1).total_microseconds() * 1e-3;
 
-#ifndef NDEBUG
-    // Debug for camera extrinsics
-    if(state->_options.do_calib_camera_pose) {
-        for(int i=0; i<state->_options.num_cameras; i++) {
-            PoseJPL* calib = state->_calib_IMUtoCAM.at(i);
-            printf("cam%d extrinsics = %.3f,%.3f,%.3f,%.3f | %.3f,%.3f,%.3f\n",(int)i,
-                     calib->quat()(0),calib->quat()(1),calib->quat()(2),calib->quat()(3),
-                     calib->pos()(0),calib->pos()(1),calib->pos()(2));
-        }
-    }
-#endif
+// #ifndef NDEBUG
+//     // Timing information
+//     printf(BLUE "[TIME]: %.4f ms for tracking\n" RESET, time_track);
+//     printf(BLUE "[TIME]: %.4f ms for propagation\n" RESET, time_prop);
+//     printf(BLUE "[TIME]: %.4f ms for MSCKF update (%d features)\n" RESET, time_msckf, (int)featsup_MSCKF.size());
+//     if(state->_options.max_slam_features > 0) {
+//         printf(BLUE "[TIME]: %.4f ms for SLAM update (%d feats)\n" RESET, time_slam_update, (int)feats_slam_UPDATE.size());
+//         printf(BLUE "[TIME]: %.4f ms for SLAM delayed init (%d feats)\n" RESET, time_slam_delay, (int)feats_slam_DELAYED.size());
+//     }
+//     printf(BLUE "[TIME]: %.4f ms for marginalization (%d clones in state)\n" RESET, time_marg, (int)state->_clones_IMU.size());
+//     printf(BLUE "[TIME]: %.4f ms for total\n" RESET, time_total);
+// #endif
+
+//     // Keep track of average
+//     total_images++;
+//     total_tracking_time += time_track;
+//     total_filter_time += (time_total - time_track);
+//     total_frame_time += time_total;
+
+// #ifndef NDEBUG
+//     // Average time breakdown between frontend and backend
+//     printf(GREEN "[AVG-TIME]: %.4f ms for tracking\n" RESET, total_tracking_time / (double) total_images);
+//     printf(GREEN "[AVG-TIME]: %.4f ms for filter\n" RESET, total_filter_time / (double) total_images);
+//     printf(GREEN "[AVG-TIME]: %.4f ms for total\n" RESET, total_frame_time / (double) total_images);
+// #endif
+
+//     // Finally if we are saving stats to file, lets save it to file
+//     if(params.record_timing_information && of_statistics.is_open()) {
+//         // We want to publish in the IMU clock frame
+//         // The timestamp in the state will be the last camera time
+//         double t_ItoC = state->_calib_dt_CAMtoIMU->value()(0);
+//         double timestamp_inI = state->_timestamp + t_ItoC;
+//         // Append to the file
+//         of_statistics << std::fixed << std::setprecision(15)
+//                       << timestamp_inI << ","
+//                       << std::fixed << std::setprecision(5)
+//                       << time_track << "," << time_prop << "," << time_msckf << ",";
+//         if(state->_options.max_slam_features > 0) {
+//             of_statistics << time_slam_update << "," << time_slam_delay << ",";
+//         }
+//         of_statistics << time_marg << "," << time_total << std::endl;
+//         of_statistics.flush();
+//     }
+
+
+//     // Update our distance traveled
+//     if(timelastupdate != -1 && state->_clones_IMU.find(timelastupdate) != state->_clones_IMU.end()) {
+//         Eigen::Matrix<double,3,1> dx = state->_imu->pos() - state->_clones_IMU.at(timelastupdate)->pos();
+//         distance += dx.norm();
+//     }
+//     timelastupdate = timestamp;
+
+// #ifndef NDEBUG
+//     // Debug, print our current state
+//     printf("q_GtoI = %.3f,%.3f,%.3f,%.3f | p_IinG = %.3f,%.3f,%.3f | dist = %.2f (meters)\n",
+//             state->_imu->quat()(0),state->_imu->quat()(1),state->_imu->quat()(2),state->_imu->quat()(3),
+//             state->_imu->pos()(0),state->_imu->pos()(1),state->_imu->pos()(2),distance);
+//     printf("bg = %.4f,%.4f,%.4f | ba = %.4f,%.4f,%.4f\n",
+//              state->_imu->bias_g()(0),state->_imu->bias_g()(1),state->_imu->bias_g()(2),
+//              state->_imu->bias_a()(0),state->_imu->bias_a()(1),state->_imu->bias_a()(2));
+// #endif
+
+
+// #ifndef NDEBUG
+//     // Debug for camera imu offset
+//     if(state->_options.do_calib_camera_timeoffset) {
+//         printf("camera-imu timeoffset = %.5f\n",state->_calib_dt_CAMtoIMU->value()(0));
+//     }
+// #endif
+
+// #ifndef NDEBUG
+//     // Debug for camera intrinsics
+//     if(state->_options.do_calib_camera_intrinsics) {
+//         for(int i=0; i<state->_options.num_cameras; i++) {
+//             Vec* calib = state->_cam_intrinsics.at(i);
+//             printf("cam%d intrinsics = %.3f,%.3f,%.3f,%.3f | %.3f,%.3f,%.3f,%.3f\n",(int)i,
+//                      calib->value()(0),calib->value()(1),calib->value()(2),calib->value()(3),
+//                      calib->value()(4),calib->value()(5),calib->value()(6),calib->value()(7));
+//         }
+//     }
+// #endif
+
+// #ifndef NDEBUG
+//     // Debug for camera extrinsics
+//     if(state->_options.do_calib_camera_pose) {
+//         for(int i=0; i<state->_options.num_cameras; i++) {
+//             PoseJPL* calib = state->_calib_IMUtoCAM.at(i);
+//             printf("cam%d extrinsics = %.3f,%.3f,%.3f,%.3f | %.3f,%.3f,%.3f\n",(int)i,
+//                      calib->quat()(0),calib->quat()(1),calib->quat()(2),calib->quat()(3),
+//                      calib->pos()(0),calib->pos()(1),calib->pos()(2));
+//         }
+//     }
+// #endif
 
 }
 

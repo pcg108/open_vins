@@ -213,7 +213,17 @@ namespace ov_msckf {
             return aruco_feats;
         }
 
+        std::vector<Feature*> get_feats_MSCKF() {
+            return feats_MSCKF;
+        }
 
+        std::vector<Feature*> get_feats_slam_UPDATE() {
+            return feats_slam_UPDATE;
+        }
+
+        std::vector<Feature*> get_feats_slam_DELAYED() {
+            return feats_slam_DELAYED;
+        }
 
     protected:
 
@@ -280,6 +290,9 @@ namespace ov_msckf {
         // Startup time of the filter
         double startup_time = -1;
 
+        std::vector<Feature*> feats_MSCKF;
+        std::vector<Feature*> feats_slam_UPDATE;
+        std::vector<Feature*> feats_slam_DELAYED;
 
     };
 
