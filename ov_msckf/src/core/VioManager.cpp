@@ -137,6 +137,7 @@ void VioManager::feed_measurement_imu(double timestamp, Eigen::Vector3d wm, Eige
 
     // Push back to our propagator
     propagator->feed_imu(timestamp,wm,am);
+    // std::cout << "imu_data size is " << propagator->get_size();
 
     // Push back to our initializer
     if(!is_initialized_vio) {
@@ -171,6 +172,16 @@ void VioManager::feed_measurement_monocular(double timestamp, cv::Mat& img0, siz
     do_feature_propagate_update(timestamp);
 
 
+}
+
+void VioManager::feed_measurement_stereo(double timestamp, std::vector<Feature*>& feats_MSCKF) {
+     if(!is_initialized_vio) {
+        is_initialized_vio = try_to_initialize();
+        if(!is_initialized_vio) return;
+    }
+
+    // Call on our propagate and update function
+    do_feature_propagate_update(timestamp, feats_MSCKF);
 }
 
 void VioManager::feed_measurement_stereo(double timestamp, cv::Mat& img0, cv::Mat& img1, size_t cam_id0, size_t cam_id1) {
@@ -302,7 +313,42 @@ bool VioManager::try_to_initialize() {
 
 }
 
+void VioManager::do_feature_propagate_update(double timestamp, std::vector<Feature*>& feats_MSCKF) {
 
+    //===================================================================================
+    // State propagation, and clone augmentation
+    //===================================================================================
+
+    // Return if the camera measurement is out of order
+    if(state->_timestamp >= timestamp) {
+        printf(YELLOW "image received out of order (prop dt = %3f)\n" RESET,(timestamp-state->_timestamp));
+        return;
+    }
+
+    // Propagate the state forward to the current update time
+    // Also augment it with a new clone!
+    propagator->propagate_and_clone(state, timestamp);
+    rT3 =  boost::posix_time::microsec_clock::local_time();
+
+    // If we have not reached max clones, we should just return...
+    // This isn't super ideal, but it keeps the logic after this easier...
+    // We can start processing things when we have at least 5 clones since we can start triangulating things...
+    if((int)state->_clones_IMU.size() < std::min(state->_options.max_clone_size,5)) {
+		printf("waiting for enough clone states (%d of %d)....\n",(int)state->_clones_IMU.size(),std::min(state->_options.max_clone_size,5));
+        return;
+    }
+
+    // Return if we where unable to propagate
+    if(state->_timestamp != timestamp) {
+		printf(RED "[PROP]: Propagator unable to propagate the state forward in time!\n" RESET);
+		printf(RED "[PROP]: It has been %.3f since last time we propagated\n" RESET,timestamp-state->_timestamp);
+        return;
+    }
+
+    updaterMSCKF->update(state, feats_MSCKF);
+
+
+}
 
 void VioManager::do_feature_propagate_update(double timestamp) {
 

@@ -225,6 +225,10 @@ namespace ov_msckf {
             return data;
         }
 
+        int get_size() {
+            return imu_data.size();
+        }
+
 
     protected:
 

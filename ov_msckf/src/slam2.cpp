@@ -192,8 +192,10 @@ public:
 		, _m_pose{sb->get_writer<pose_type>("slow_pose")}
 		, _m_pose_prof{sb->get_writer<pose_type_prof>("slow_pose_prof")}
 		, _m_imu_integrator_input{sb->get_writer<imu_integrator_input>("imu_integrator_input")}
+		, _m_feats_MSCKF{sb->get_buffered_reader<features>("feats_MSCKF")}
 		, open_vins_estimator{manager_params}
-		, imu_cam_buffer{nullptr}
+		// , imu_cam_buffer{nullptr}
+		, feature_timestamp{time_point{}}
 	{
 
         // Disabling OpenCV threading is faster on x86 desktop but slower on
@@ -215,13 +217,13 @@ public:
 
 	virtual void start() override {
 		plugin::start();
-		sb->schedule<imu_cam_type_prof>(id, "imu_cam", [&](switchboard::ptr<const imu_cam_type_prof> datum, std::size_t iteration_no) {
+		sb->schedule<imu_buffer>(id, "imu_buffer", [&](switchboard::ptr<const imu_buffer> datum, std::size_t iteration_no) {
 			this->feed_imu_cam(datum, iteration_no);
 		});
 	}
 
 
-	void feed_imu_cam(switchboard::ptr<const imu_cam_type_prof> datum, std::size_t iteration_no) {
+	void feed_imu_cam(switchboard::ptr<const imu_buffer> datum, std::size_t iteration_no) {
 		unsigned long long curr_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
 		// Ensures that slam doesnt start before valid IMU readings come in
@@ -230,128 +232,140 @@ public:
 		}
 
 		// Feed the IMU measurement. There should always be IMU data in each call to feed_imu_cam
-		assert((datum->img0.has_value() && datum->img1.has_value()) || (!datum->img0.has_value() && !datum->img1.has_value()));
-		open_vins_estimator.feed_measurement_imu(duration2double(datum->time.time_since_epoch()), datum->angular_v.cast<double>(), datum->linear_a.cast<double>());
-
-		// If there is not cam data this func call, break early
-		if (!datum->img0.has_value() && !datum->img1.has_value()) {
-			return;
-		} else if (imu_cam_buffer == NULL) {
-			imu_cam_buffer = datum;
-			return;
+		// assert((datum->img0.has_value() && datum->img1.has_value()) || (!datum->img0.has_value() && !datum->img1.has_value()));
+		for (imu_type sample : datum->imus) {
+			open_vins_estimator.feed_measurement_imu(duration2double(sample.timestamp.time_since_epoch()), sample.wm.cast<double>(), sample.am.cast<double>());
+			std::cout << "Publishing one imu with timestamp " <<  duration2double(sample.timestamp.time_since_epoch()) << "\n";
 		}
 
+		// If there is not cam data this func call, break early
+		// if (!datum->img0.has_value() && !datum->img1.has_value()) {
+		// 	return;
+		// } else if (imu_cam_buffer == NULL) {
+		// 	imu_cam_buffer = datum;
+		// 	return;
+		// }
+
 // #ifdef CV_HAS_METRICS
-		cv::metrics::setAccount(new std::string{std::to_string(counter_2)});
-		// if (iteration_no % 20 == 0) {
-		cv::metrics::dump();
-		counter_2++;
+		// cv::metrics::setAccount(new std::string{std::to_string(counter_2)});
+		// // if (iteration_no % 20 == 0) {
+		// cv::metrics::dump();
+		// counter_2++;
 		// }
 // #else
 // #warning "No OpenCV metrics available. Please recompile OpenCV from git clone --branch 3.4.6-instrumented https://github.com/ILLIXR/opencv/. (see install_deps.sh)"
 // #endif
 
-		cv::Mat img0{imu_cam_buffer->img0.value()};
-		cv::Mat img1{imu_cam_buffer->img1.value()};
-		// cv::imshow("img0", img0);
-		// cv::waitKey(1);
-		// cv::imshow("img1", img1);
-		// cv::waitKey(1);
-		open_vins_estimator.feed_measurement_stereo(duration2double(imu_cam_buffer->time.time_since_epoch()), img0, img1, 0, 1);
-
-		// Get the pose returned from SLAM
-		state = open_vins_estimator.get_state();
-		Eigen::Vector4d quat = state->_imu->quat();
-		Eigen::Vector3d vel = state->_imu->vel();
-		Eigen::Vector3d pose = state->_imu->pos();
-
-		Eigen::Vector3f swapped_pos = Eigen::Vector3f{float(pose(0)), float(pose(1)), float(pose(2))};
-		Eigen::Quaternionf swapped_rot = Eigen::Quaternionf{float(quat(3)), float(quat(0)), float(quat(1)), float(quat(2))};
-		Eigen::Quaterniond swapped_rot2 = Eigen::Quaterniond{(quat(3)), (quat(0)), (quat(1)), (quat(2))};
-
-       	assert(isfinite(swapped_rot.w()));
-        assert(isfinite(swapped_rot.x()));
-        assert(isfinite(swapped_rot.y()));
-        assert(isfinite(swapped_rot.z()));
-        assert(isfinite(swapped_pos[0]));
-        assert(isfinite(swapped_pos[1]));
-        assert(isfinite(swapped_pos[2]));
-
-		// std::cout << std::fixed << datum->time.time_since_epoch().count() << ","
-        //           << swapped_pos.x() << ","
-        //           << swapped_pos.y() << ","
-        //           << swapped_pos.z() << ","
-        //           << swapped_rot.w() << ","
-        //           << swapped_rot.x() << ","
-        //           << swapped_rot.y() << ","
-        //           << swapped_rot.z() << std::endl;
-
-		unsigned long long updated_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-		// double secs = (updated_time - curr_time) / 1e9;
-		// vio_time << datum->frame_id << "," << datum->time.time_since_epoch().count() << "," << secs * 1e3 << std::endl;
-		vio_timestamps.push_back(datum->time.time_since_epoch().count());
-		vio_durations.push_back((updated_time - curr_time) / 1e6);
-
-		// Slow down slow pose push
-		// counter++;
-		// if (counter % 4 != 0) {
-		// 	imu_cam_buffer = datum;
+		// cv::Mat img0{imu_cam_buffer->img0.value()};
+		// cv::Mat img1{imu_cam_buffer->img1.value()};
+		auto fts = _m_feats_MSCKF.dequeue();
+		// if (fts != nullptr && feats_MSCKF_buffer == NULL) {
+		// 	feats_MSCKF_buffer = fts;
+		// 	feature_timestamp = fts->timestamp;
 		// 	return;
 		// }
-
-		if (open_vins_estimator.initialized()) {
-			if (isUninitialized) {
-				isUninitialized = false;
+		if (fts != nullptr && fts->timestamp != feature_timestamp) {
+			std::vector<Feature*> feats_MSCKF;
+			for (feature f: fts->feats) {
+				Feature* feat = new Feature();
+				feat->featid = f.featid;
+				feat->to_delete = f.to_delete;
+				feat->uvs = f.uvs;
+				feat->uvs_norm = f.uvs_norm;
+				feat->timestamps = f.timestamps;
+				feat->anchor_cam_id = f.anchor_cam_id;
+				feat->anchor_clone_timestamp = f.anchor_clone_timestamp;
+				feat->p_FinA = f.p_FinA;
+				feat->p_FinG = f.p_FinG;
+				//f.featid, f.to_delete, f.uvs, f.uvs_norm, f.timestamps, f.anchor_cam_id, f.anchor_clone_timestamp, f.p_FinA, f.p_FinG);
+				feats_MSCKF.push_back(feat);
 			}
+			open_vins_estimator.feed_measurement_stereo(duration2double(fts->timestamp.time_since_epoch()), feats_MSCKF);
+			std::cout << "Publishing one set of features, feature_timestamp is " << feature_timestamp.time_since_epoch().count() << "\n";
 
-			_m_pose.put(_m_pose.allocate(
-				imu_cam_buffer->time,
-				swapped_pos,
-				swapped_rot
-			));
+			// Get the pose returned from SLAM
+			state = open_vins_estimator.get_state();
+			Eigen::Vector4d quat = state->_imu->quat();
+			Eigen::Vector3d vel = state->_imu->vel();
+			Eigen::Vector3d pose = state->_imu->pos();
 
-			_m_pose_prof.put(_m_pose_prof.allocate(
-				imu_cam_buffer->frame_id,
-				imu_cam_buffer->time,
-				imu_cam_buffer->start_time,
-				imu_cam_buffer->rec_time,
-				imu_cam_buffer->dataset_time,
-				swapped_pos,
-				swapped_rot
-			));
+			Eigen::Vector3f swapped_pos = Eigen::Vector3f{float(pose(0)), float(pose(1)), float(pose(2))};
+			Eigen::Quaternionf swapped_rot = Eigen::Quaternionf{float(quat(3)), float(quat(0)), float(quat(1)), float(quat(2))};
+			Eigen::Quaterniond swapped_rot2 = Eigen::Quaterniond{(quat(3)), (quat(0)), (quat(1)), (quat(2))};
 
-			_m_imu_integrator_input.put(_m_imu_integrator_input.allocate(
-				imu_cam_buffer->time,
-				from_seconds(state->_calib_dt_CAMtoIMU->value()(0)),
-				imu_params{
-					.gyro_noise = manager_params.imu_noises.sigma_w,
-					.acc_noise = manager_params.imu_noises.sigma_a,
-					.gyro_walk = manager_params.imu_noises.sigma_wb,
-					.acc_walk = manager_params.imu_noises.sigma_ab,
-					.n_gravity = Eigen::Matrix<double,3,1>(0.0, 0.0, -9.81),
-					.imu_integration_sigma = 1.0,
-					.nominal_rate = 500.0,
-				},
-				state->_imu->bias_a(),
-				state->_imu->bias_g(),
-				pose,
-				vel,
-				swapped_rot2
-			));	
+			assert(isfinite(swapped_rot.w()));
+			assert(isfinite(swapped_rot.x()));
+			assert(isfinite(swapped_rot.y()));
+			assert(isfinite(swapped_rot.z()));
+			assert(isfinite(swapped_pos[0]));
+			assert(isfinite(swapped_pos[1]));
+			assert(isfinite(swapped_pos[2]));
 
-			slam_csv << imu_cam_buffer->time.time_since_epoch().count() << ","
-				<< swapped_pos.x() << ","
-				<< swapped_pos.y() << ","
-				<< swapped_pos.z() << ","
-				<< swapped_rot.w() << ","
-				<< swapped_rot.x() << ","
-				<< swapped_rot.y() << ","
-				<< swapped_rot.z() << std::endl;
+			// unsigned long long updated_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+			// double secs = (updated_time - curr_time) / 1e9;
+			// vio_time << datum->frame_id << "," << datum->time.time_since_epoch().count() << "," << secs * 1e3 << std::endl;
+			// vio_timestamps.push_back(datum->time.time_since_epoch().count());
+			// vio_durations.push_back((updated_time - curr_time) / 1e6);
+
+			if (open_vins_estimator.initialized()) {
+				if (isUninitialized) {
+					isUninitialized = false;
+				}
+
+				_m_pose.put(_m_pose.allocate(
+					feature_timestamp,
+					swapped_pos,
+					swapped_rot
+				));
+
+				_m_pose_prof.put(_m_pose_prof.allocate(
+					frame_id++,
+					feature_timestamp,
+					// imu_cam_buffer->start_time,
+					// imu_cam_buffer->rec_time,
+					// imu_cam_buffer->dataset_time,
+					time_point{},
+					time_point{},
+					time_point{},
+					swapped_pos,
+					swapped_rot
+				));
+
+				_m_imu_integrator_input.put(_m_imu_integrator_input.allocate(
+					feature_timestamp,
+					from_seconds(state->_calib_dt_CAMtoIMU->value()(0)),
+					imu_params{
+						.gyro_noise = manager_params.imu_noises.sigma_w,
+						.acc_noise = manager_params.imu_noises.sigma_a,
+						.gyro_walk = manager_params.imu_noises.sigma_wb,
+						.acc_walk = manager_params.imu_noises.sigma_ab,
+						.n_gravity = Eigen::Matrix<double,3,1>(0.0, 0.0, -9.81),
+						.imu_integration_sigma = 1.0,
+						.nominal_rate = 500.0,
+					},
+					state->_imu->bias_a(),
+					state->_imu->bias_g(),
+					pose,
+					vel,
+					swapped_rot2
+				));
+
+				slam_csv << feature_timestamp.time_since_epoch().count() << ","
+					<< swapped_pos.x() << ","
+					<< swapped_pos.y() << ","
+					<< swapped_pos.z() << ","
+					<< swapped_rot.w() << ","
+					<< swapped_rot.x() << ","
+					<< swapped_rot.y() << ","
+					<< swapped_rot.z() << std::endl;
 			// poses.push_back(pose_type(imu_cam_buffer->time, swapped_pos, swapped_rot));
 			// params.imu_noises.sigma_a = 0.00395942;  // Accelerometer noise
 			// params.imu_noises.sigma_ab = 0.00072014; // Accelerometer random walk
 			// params.imu_noises.sigma_w = 0.00024213;  // Gyroscope noise
 			// params.imu_noises.sigma_wb = 1.9393e-05; // Gyroscope random walk
+			}
+			feats_MSCKF_buffer = fts;
+			feature_timestamp = fts->timestamp;
 		}
 
 		// I know, a priori, nobody other plugins subscribe to this topic
@@ -361,7 +375,7 @@ public:
 		// Turns out, this is no longer correct. debbugview uses it
 		// const_cast<imu_cam_type*>(imu_cam_buffer)->img0.reset();
 		// const_cast<imu_cam_type*>(imu_cam_buffer)->img1.reset();
-		imu_cam_buffer = datum;
+		// imu_cam_buffer = datum;
 	}
 
 	// virtual ~slam2() override {
@@ -391,21 +405,26 @@ private:
 	switchboard::writer<pose_type> _m_pose;
 	switchboard::writer<pose_type_prof> _m_pose_prof;
     switchboard::writer<imu_integrator_input> _m_imu_integrator_input;
+	switchboard::buffered_reader<features> _m_feats_MSCKF;
 	State *state;
 	// int counter = 0;
-	int counter_2 = 0;
+	// int counter_2 = 0;
 
 	VioManagerOptions manager_params = create_params();
 	VioManager open_vins_estimator;
 
-	switchboard::ptr<const imu_cam_type_prof> imu_cam_buffer;
+	// switchboard::ptr<const imu_cam_type_prof> imu_cam_buffer;
 	bool isUninitialized = true;
 
 	std::vector<pose_type> poses;
 
-	std::vector<long> vio_timestamps;
-	std::vector<double> vio_durations;
+	// std::vector<long> vio_timestamps;
+	// std::vector<double> vio_durations;
 
+	time_point feature_timestamp;
+
+	switchboard::ptr<const features> feats_MSCKF_buffer;
+	int frame_id = 0;
 };
 
 PLUGIN_MAIN(slam2)

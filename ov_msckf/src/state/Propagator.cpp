@@ -251,9 +251,11 @@ std::vector<Propagator::IMUDATA> Propagator::select_imu_readings(const std::vect
         }
 
     }
+    printf(YELLOW "time0 %lf, time1 %lf, oldest IMU time %lf, latest IMU time %lf\n" RESET, time0, time1, imu_data.at(0).timestamp, imu_data.at(imu_data.size()-1).timestamp);
 
     // Check that we have at least one measurement to propagate with
     if(prop_data.empty()) {
+        // printf(YELLOW "time0 %lf, time1 %lf, latest IMU time %lf\n" RESET, time0, time1, imu_data.at(imu_data.size()-1).timestamp);
         printf(YELLOW "Propagator::select_imu_readings(): No IMU measurements to propagate with (%d of 2). IMU-CAMERA are likely messed up!!!\n" RESET, (int)prop_data.size());
         return prop_data;
     }
