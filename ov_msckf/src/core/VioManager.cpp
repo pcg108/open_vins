@@ -174,6 +174,21 @@ void VioManager::feed_measurement_monocular(double timestamp, cv::Mat& img0, siz
 
 }
 
+void VioManager::feed_measurement_stereo(double timestamp, size_t cam_id0, size_t cam_id1, std::vector<size_t>& good_ids_left, std::vector<cv::KeyPoint>& good_left, 
+                                                           std::vector<size_t>& good_ids_right, std::vector<cv::KeyPoint>& good_right) {
+    trackFEATS->feed_stereo(timestamp, cam_id0, cam_id1, good_ids_left, good_left, good_ids_right, good_right);
+
+    // If we do not have VIO initialization, then try to initialize
+    // TODO: Or if we are trying to reset the system, then do that here!
+    if(!is_initialized_vio) {
+        is_initialized_vio = try_to_initialize();
+        if(!is_initialized_vio) return;
+    }
+
+    // Call on our propagate and update function
+    do_feature_propagate_update(timestamp);
+}
+
 void VioManager::feed_measurement_stereo(double timestamp, std::vector<Feature*>& feats_MSCKF) {
      if(!is_initialized_vio) {
         is_initialized_vio = try_to_initialize();

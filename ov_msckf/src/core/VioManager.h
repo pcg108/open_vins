@@ -97,6 +97,10 @@ namespace ov_msckf {
 
         void feed_measurement_stereo(double timestamp, std::vector<Feature*>& feats_MSCKF);
 
+        void feed_measurement_stereo(double timestamp, size_t cam_id0, size_t cam_id1, 
+                                    std::vector<size_t>& good_ids_left, std::vector<cv::KeyPoint>& good_left, 
+                                    std::vector<size_t>& good_ids_right, std::vector<cv::KeyPoint>& good_right);
+
         /**
          * @brief Feed function for a synchronized simulated cameras
          * @param timestamp Time that this image was collected

@@ -192,10 +192,12 @@ public:
 		, _m_pose{sb->get_writer<pose_type>("slow_pose")}
 		, _m_pose_prof{sb->get_writer<pose_type_prof>("slow_pose_prof")}
 		, _m_imu_integrator_input{sb->get_writer<imu_integrator_input>("imu_integrator_input")}
-		, _m_feats_MSCKF{sb->get_buffered_reader<features>("feats_MSCKF")}
+		// , _m_feats_MSCKF{sb->get_buffered_reader<features>("feats_MSCKF")}
+		, _m_left_pts{sb->get_buffered_reader<key_points>("left_pts")}
+		, _m_right_pts{sb->get_buffered_reader<key_points>("right_pts")}
 		, open_vins_estimator{manager_params}
 		// , imu_cam_buffer{nullptr}
-		, feature_timestamp{time_point{}}
+		// , feature_timestamp{time_point{}}
 	{
 
         // Disabling OpenCV threading is faster on x86 desktop but slower on
@@ -256,14 +258,9 @@ public:
 // #warning "No OpenCV metrics available. Please recompile OpenCV from git clone --branch 3.4.6-instrumented https://github.com/ILLIXR/opencv/. (see install_deps.sh)"
 // #endif
 
-		// cv::Mat img0{imu_cam_buffer->img0.value()};
-		// cv::Mat img1{imu_cam_buffer->img1.value()};
+		/* offload all features
 		auto fts = _m_feats_MSCKF.dequeue();
-		// if (fts != nullptr && feats_MSCKF_buffer == NULL) {
-		// 	feats_MSCKF_buffer = fts;
-		// 	feature_timestamp = fts->timestamp;
-		// 	return;
-		// }
+		
 		if (fts != nullptr && fts->timestamp != feature_timestamp) {
 			std::vector<Feature*> feats_MSCKF;
 			for (feature f: fts->feats) {
@@ -282,6 +279,24 @@ public:
 			}
 			open_vins_estimator.feed_measurement_stereo(duration2double(fts->timestamp.time_since_epoch()), feats_MSCKF);
 			std::cout << "Publishing one set of features, feature_timestamp is " << feature_timestamp.time_since_epoch().count() << "\n";
+		*/
+
+		auto left_pts = _m_left_pts.dequeue();
+		auto right_pts = _m_right_pts.dequeue();
+		if (left_pts != nullptr && right_pts != nullptr) {
+			std::vector<size_t> good_ids_left, good_ids_right;
+			std::vector<cv::KeyPoint> good_left, good_right;
+			for (key_point kpt : left_pts->pts) {
+				good_ids_left.emplace_back(kpt.id);
+				good_left.emplace_back(kpt.pt);
+			}
+			for (key_point kpt : right_pts->pts) {
+				good_ids_right.emplace_back(kpt.id);
+				good_right.emplace_back(kpt.pt);
+			}
+
+			open_vins_estimator.feed_measurement_stereo(duration2double(left_pts->timestamp.time_since_epoch()), 0, 1, good_ids_left, good_left, good_ids_right, good_right);
+			std::cout << "Publishing one set of key points, feature_timestamp is " << left_pts->timestamp.time_since_epoch().count() << "\n";
 
 			// Get the pose returned from SLAM
 			state = open_vins_estimator.get_state();
@@ -313,14 +328,14 @@ public:
 				}
 
 				_m_pose.put(_m_pose.allocate(
-					feature_timestamp,
+					left_pts->timestamp,
 					swapped_pos,
 					swapped_rot
 				));
 
 				_m_pose_prof.put(_m_pose_prof.allocate(
 					frame_id++,
-					feature_timestamp,
+					left_pts->timestamp,
 					// imu_cam_buffer->start_time,
 					// imu_cam_buffer->rec_time,
 					// imu_cam_buffer->dataset_time,
@@ -332,7 +347,7 @@ public:
 				));
 
 				_m_imu_integrator_input.put(_m_imu_integrator_input.allocate(
-					feature_timestamp,
+					left_pts->timestamp,
 					from_seconds(state->_calib_dt_CAMtoIMU->value()(0)),
 					imu_params{
 						.gyro_noise = manager_params.imu_noises.sigma_w,
@@ -350,7 +365,7 @@ public:
 					swapped_rot2
 				));
 
-				slam_csv << feature_timestamp.time_since_epoch().count() << ","
+				slam_csv << left_pts->timestamp.time_since_epoch().count() << ","
 					<< swapped_pos.x() << ","
 					<< swapped_pos.y() << ","
 					<< swapped_pos.z() << ","
@@ -364,8 +379,8 @@ public:
 			// params.imu_noises.sigma_w = 0.00024213;  // Gyroscope noise
 			// params.imu_noises.sigma_wb = 1.9393e-05; // Gyroscope random walk
 			}
-			feats_MSCKF_buffer = fts;
-			feature_timestamp = fts->timestamp;
+			// feats_MSCKF_buffer = fts;
+			// feature_timestamp = left_pts->timestamp;
 		}
 
 		// I know, a priori, nobody other plugins subscribe to this topic
@@ -405,7 +420,10 @@ private:
 	switchboard::writer<pose_type> _m_pose;
 	switchboard::writer<pose_type_prof> _m_pose_prof;
     switchboard::writer<imu_integrator_input> _m_imu_integrator_input;
-	switchboard::buffered_reader<features> _m_feats_MSCKF;
+	// switchboard::buffered_reader<features> _m_feats_MSCKF;
+	switchboard::buffered_reader<key_points> _m_left_pts;
+	switchboard::buffered_reader<key_points> _m_right_pts;
+
 	State *state;
 	// int counter = 0;
 	// int counter_2 = 0;
@@ -421,9 +439,9 @@ private:
 	// std::vector<long> vio_timestamps;
 	// std::vector<double> vio_durations;
 
-	time_point feature_timestamp;
+	// time_point feature_timestamp;
 
-	switchboard::ptr<const features> feats_MSCKF_buffer;
+	// switchboard::ptr<const features> feats_MSCKF_buffer;
 	int frame_id = 0;
 };
 

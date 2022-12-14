@@ -132,6 +132,23 @@ void TrackKLT::feed_monocular(double timestamp, cv::Mat &img, size_t cam_id) {
 
 }
 
+void TrackKLT::feed_stereo(double timestamp, size_t cam_id_left, size_t cam_id_right, std::vector<size_t>& good_ids_left, std::vector<cv::KeyPoint>& good_left,
+                                std::vector<size_t>& good_ids_right, std::vector<cv::KeyPoint>& good_right) {
+    // Update our feature database, with theses new observations
+    for(size_t i=0; i<good_left.size(); i++) {
+        cv::Point2f npt_l = undistort_point(good_left.at(i).pt, cam_id_left);
+        database->update_feature(good_ids_left.at(i), timestamp, cam_id_left,
+                                 good_left.at(i).pt.x, good_left.at(i).pt.y,
+                                 npt_l.x, npt_l.y);
+    }
+    for(size_t i=0; i<good_right.size(); i++) {
+        cv::Point2f npt_r = undistort_point(good_right.at(i).pt, cam_id_right);
+        database->update_feature(good_ids_right.at(i), timestamp, cam_id_right,
+                                 good_right.at(i).pt.x, good_right.at(i).pt.y,
+                                 npt_r.x, npt_r.y);
+    }
+}
+
 
 void TrackKLT::feed_stereo(double timestamp, cv::Mat &img_leftin, cv::Mat &img_rightin, size_t cam_id_left, size_t cam_id_right) {
 
