@@ -66,6 +66,14 @@ namespace ov_core {
             std::exit(EXIT_FAILURE);
         }
 
+        void feed_stereo(double timestamp, cv::Mat &img_left, cv::Mat &img_right, size_t cam_id_left, size_t cam_id_right, 
+                        std::vector<size_t> &good_ids_left, std::vector<cv::KeyPoint> &good_left, 
+                        std::vector<size_t> &good_ids_right, std::vector<cv::KeyPoint> &good_right) override {
+            printf(RED "[SIM]: SIM TRACKER FEED STEREO CALLED!!!\n" RESET);
+            printf(RED "[SIM]: THIS SHOULD NEVER HAPPEN!\n" RESET);
+            std::exit(EXIT_FAILURE);
+        }
+
         /**
          * @brief Feed function for a synchronized simulated cameras
          * @param timestamp Time that this image was collected

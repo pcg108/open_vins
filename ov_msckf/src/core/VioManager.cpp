@@ -181,9 +181,18 @@ void VioManager::feed_measurement_stereo(double timestamp, cv::Mat& img0, cv::Ma
     // Assert we have good ids
     assert(cam_id0!=cam_id1);
 
+    // Get our "good tracks"
+    std::vector<cv::KeyPoint> good_left, good_right;
+    std::vector<size_t> good_ids_left, good_ids_right;
+
     // Feed our stereo trackers, if we are not doing binocular
     if(params.use_stereo) {
-        trackFEATS->feed_stereo(timestamp, img0, img1, cam_id0, cam_id1);
+        trackFEATS->feed_stereo(timestamp, img0, img1, cam_id0, cam_id1, good_ids_left, good_left, good_ids_right, good_right);
+        this->good_ids_left = good_ids_left;
+        this->good_left = good_left;
+        this->good_ids_right = good_ids_right;
+        this->good_right = good_right;
+        // trackFEATS->feed_stereo(timestamp, img0, img1, cam_id0, cam_id1);
     } else {
 #ifdef ILLIXR_INTEGRATION
         std::thread t_l = timed_thread("slam2 feed l", &TrackBase::feed_monocular, trackFEATS, boost::ref(timestamp), boost::ref(img0), boost::ref(cam_id0));
@@ -212,7 +221,7 @@ void VioManager::feed_measurement_stereo(double timestamp, cv::Mat& img0, cv::Ma
     }
 
     // Call on our propagate and update function
-    do_feature_propagate_update(timestamp);
+    // do_feature_propagate_update(timestamp);
 
 }
 

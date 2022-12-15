@@ -219,6 +219,10 @@ namespace ov_core {
          */
         virtual void feed_stereo(double timestamp, cv::Mat &img_left, cv::Mat &img_right, size_t cam_id_left, size_t cam_id_right) = 0;
 
+        virtual void feed_stereo(double timestamp, cv::Mat &img_left, cv::Mat &img_right, size_t cam_id_left, size_t cam_id_right, 
+                        std::vector<size_t> &good_ids_left, std::vector<cv::KeyPoint> &good_left, 
+                        std::vector<size_t> &good_ids_right, std::vector<cv::KeyPoint> &good_right) = 0;
+
         /**
          * @brief Shows features extracted in the last image
          * @param img_out image to which we will overlayed features on

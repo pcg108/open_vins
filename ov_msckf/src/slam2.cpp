@@ -190,9 +190,11 @@ public:
 	slam2(std::string name_, phonebook* pb_)
 		: plugin{name_, pb_}
 		, sb{pb->lookup_impl<switchboard>()}
-		, _m_feats_MSCKF{sb->get_writer<features>("feats_MSCKF")}
-		, _m_feats_slam_UPDATE{sb->get_writer<features>("feats_slam_UPDATE")}
-		, _m_feats_slam_DELAYED{sb->get_writer<features>("feats_slam_DELAYED")}
+		// , _m_feats_MSCKF{sb->get_writer<features>("feats_MSCKF")}
+		// , _m_feats_slam_UPDATE{sb->get_writer<features>("feats_slam_UPDATE")}
+		// , _m_feats_slam_DELAYED{sb->get_writer<features>("feats_slam_DELAYED")}
+		, _m_left_pts{sb->get_writer<key_points>("left_pts")}
+		, _m_right_pts{sb->get_writer<key_points>("right_pts")}
 		, _m_imus{sb->get_writer<imu_buffer>("imu_buffer")}
 		, open_vins_estimator{manager_params}
 		, imu_cam_buffer{nullptr}
@@ -263,14 +265,52 @@ public:
 		open_vins_estimator.feed_measurement_stereo(duration2double(imu_cam_buffer->time.time_since_epoch()), img0, img1, 0, 1);
 
 		// Get features
-		feats_MSCKF = open_vins_estimator.get_feats_MSCKF();
-		feats_slam_UPDATE = open_vins_estimator.get_feats_slam_UPDATE();
-		feats_slam_DELAYED = open_vins_estimator.get_feats_slam_DELAYED();
+		// feats_MSCKF = open_vins_estimator.get_feats_MSCKF();
+		// feats_slam_UPDATE = open_vins_estimator.get_feats_slam_UPDATE();
+		// feats_slam_DELAYED = open_vins_estimator.get_feats_slam_DELAYED();
+
+		good_ids_left = open_vins_estimator.get_good_ids_left();
+		good_ids_right = open_vins_estimator.get_good_ids_right();
+		good_left = open_vins_estimator.get_good_left();
+		good_right = open_vins_estimator.get_good_right();
 
 		unsigned long long updated_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-		vio_timestamps.push_back(datum->time.time_since_epoch().count());
-		vio_durations.push_back((updated_time - curr_time) / 1e6);
+		// vio_timestamps.push_back(datum->time.time_since_epoch().count());
+		// vio_durations.push_back((updated_time - curr_time) / 1e6);
+		slam_csv << (updated_time - curr_time) / 1e6 << std::endl;
 
+		std::vector<key_point> left_pts;
+		std::vector<key_point> right_pts;
+		for (size_t i = 0; i < good_ids_left.size(); i++) {
+			left_pts.emplace_back(key_point{good_ids_left.at(i), good_left.at(i)});
+		}
+		for (size_t i = 0; i < good_ids_right.size(); i++) {
+			right_pts.emplace_back(key_point{good_ids_right.at(i), good_right.at(i)});
+		}
+		_m_left_pts.put(_m_left_pts.allocate<key_points>(
+			key_points {
+				imu_cam_buffer->time, 
+				left_pts
+			}
+		));
+		_m_right_pts.put(_m_right_pts.allocate<key_points>(
+			key_points {
+				imu_cam_buffer->time, 
+				right_pts
+			}
+		));
+		std::cout << "size of left_pts " << left_pts.size() << "\n";
+		std::cout << "size of right_pts " << right_pts.size() << "\n";
+		_m_imus.put(_m_imus.allocate<imu_buffer>(
+				imu_buffer{imus}
+			));
+		if (imus.empty()){
+			std::cout << "imus is empty after move\n";
+		} else {
+			imus.clear();
+		}
+
+		/* offload all features every time -> too large data size 
 		std::vector<feature> feats_MSCKF_offload;
 		std::vector<feature> feats_slam_UPDATE_offload;
 		std::vector<feature> feats_slam_DELAYED_offload;
@@ -350,9 +390,11 @@ public:
 			} else {
 				imus.clear();
 			}
+		
 		} else {
 
 		}
+		*/
 
 		// I know, a priori, nobody other plugins subscribe to this topic
 		// Therefore, I can const the cast away, and delete stuff
@@ -371,9 +413,11 @@ private:
 	std::ofstream slam_csv;
 
 	const std::shared_ptr<switchboard> sb;
-	switchboard::writer<features> _m_feats_MSCKF;
-	switchboard::writer<features> _m_feats_slam_UPDATE;
-	switchboard::writer<features> _m_feats_slam_DELAYED;
+	// switchboard::writer<features> _m_feats_MSCKF;
+	// switchboard::writer<features> _m_feats_slam_UPDATE;
+	// switchboard::writer<features> _m_feats_slam_DELAYED;
+	switchboard::writer<key_points> _m_left_pts;
+	switchboard::writer<key_points> _m_right_pts;
 	switchboard::writer<imu_buffer> _m_imus;
 
 	// int counter = 0;
@@ -386,12 +430,15 @@ private:
 
 	std::vector<pose_type> poses;
 
-	std::vector<long> vio_timestamps;
-	std::vector<double> vio_durations;
+	// std::vector<long> vio_timestamps;
+	// std::vector<double> vio_durations;
 
-	std::vector<Feature*> feats_MSCKF;
-	std::vector<Feature*> feats_slam_UPDATE;
-	std::vector<Feature*> feats_slam_DELAYED;
+	// std::vector<Feature*> feats_MSCKF;
+	// std::vector<Feature*> feats_slam_UPDATE;
+	// std::vector<Feature*> feats_slam_DELAYED;
+
+	std::vector<size_t> good_ids_left, good_ids_right;
+	std::vector<cv::KeyPoint> good_left, good_right;
 
 	std::vector<imu_type> imus;
 };

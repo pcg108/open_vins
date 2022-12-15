@@ -132,6 +132,220 @@ void TrackKLT::feed_monocular(double timestamp, cv::Mat &img, size_t cam_id) {
 
 }
 
+void TrackKLT::feed_stereo(double timestamp, cv::Mat &img_leftin, cv::Mat &img_rightin, size_t cam_id_left, size_t cam_id_right,
+                        std::vector<size_t> &good_ids_left, std::vector<cv::KeyPoint> &good_left,
+                        std::vector<size_t> &good_ids_right, std::vector<cv::KeyPoint> &good_right) {
+    // Start timing
+    rT1 =  boost::posix_time::microsec_clock::local_time();
+
+    // Lock this data feed for this camera
+    std::unique_lock<std::mutex> lck1(mtx_feeds.at(cam_id_left));
+    std::unique_lock<std::mutex> lck2(mtx_feeds.at(cam_id_right));
+
+    cv::Mat img_left, img_right;
+// #ifdef ILLIXR_INTEGRATION
+    // Histogram equalize
+    std::thread t_lhe = timed_thread("slam2 hist l", cv::equalizeHist, cv::_InputArray(img_leftin ), cv::_OutputArray(img_left ));
+    std::thread t_rhe = timed_thread("slam2 hist r", cv::equalizeHist, cv::_InputArray(img_rightin), cv::_OutputArray(img_right));
+// #else /// ILLIXR_INTEGRATION
+//     boost::thread t_lhe = boost::thread(cv::equalizeHist, boost::cref(img_leftin), boost::ref(img_left));
+//     boost::thread t_rhe = boost::thread(cv::equalizeHist, boost::cref(img_rightin), boost::ref(img_right));
+// #endif /// ILLIXR_INTEGRATION
+    t_lhe.join();
+    t_rhe.join();
+
+    // Extract image pyramids (boost seems to require us to put all the arguments even if there are defaults....)
+    std::vector<cv::Mat> imgpyr_left, imgpyr_right;
+// #ifdef ILLIXR_INTEGRATION
+    std::thread t_lp = timed_thread("slam2 pyramid l", &cv::buildOpticalFlowPyramid, cv::_InputArray(img_left),
+                                       cv::_OutputArray(imgpyr_left), win_size, pyr_levels, false,
+                                       cv::BORDER_REFLECT_101, cv::BORDER_CONSTANT, true);
+    std::thread t_rp = timed_thread("slam2 pyramid r", &cv::buildOpticalFlowPyramid, cv::_InputArray(img_right),
+                                       cv::_OutputArray(imgpyr_right), win_size, pyr_levels,
+                                       false, cv::BORDER_REFLECT_101, cv::BORDER_CONSTANT, true);
+// #else /// ILLIXR_INTEGRATION
+//     boost::thread t_lp = boost::thread(cv::buildOpticalFlowPyramid, boost::cref(img_left),
+//                                        boost::ref(imgpyr_left), boost::ref(win_size), boost::ref(pyr_levels), false,
+//                                        cv::BORDER_REFLECT_101, cv::BORDER_CONSTANT, true);
+//     boost::thread t_rp = boost::thread(cv::buildOpticalFlowPyramid, boost::cref(img_right),
+//                                        boost::ref(imgpyr_right), boost::ref(win_size), boost::ref(pyr_levels),
+//                                        false, cv::BORDER_REFLECT_101, cv::BORDER_CONSTANT, true);
+// #endif /// ILLIXR_INTEGRATION
+    t_lp.join();
+    t_rp.join();
+
+    rT2 =  boost::posix_time::microsec_clock::local_time();
+
+    // If we didn't have any successful tracks last time, just extract this time
+    // This also handles, the tracking initalization on the first call to this extractor
+    if(pts_last[cam_id_left].empty() || pts_last[cam_id_right].empty()) {
+        // Track into the new image
+        perform_detection_stereo(imgpyr_left, imgpyr_right, pts_last[cam_id_left], pts_last[cam_id_right], ids_last[cam_id_left], ids_last[cam_id_right]);
+        // Save the current image and pyramid
+        img_last[cam_id_left] = img_left.clone();
+        img_last[cam_id_right] = img_right.clone();
+        img_pyramid_last[cam_id_left] = imgpyr_left;
+        img_pyramid_last[cam_id_right] = imgpyr_right;
+        return;
+    }
+
+    // First we should make that the last images have enough features so we can do KLT
+    // This will "top-off" our number of tracks so always have a constant number
+    perform_detection_stereo(img_pyramid_last[cam_id_left], img_pyramid_last[cam_id_right],
+                             pts_last[cam_id_left], pts_last[cam_id_right],
+                             ids_last[cam_id_left], ids_last[cam_id_right]);
+    rT3 =  boost::posix_time::microsec_clock::local_time();
+
+
+    //===================================================================================
+    //===================================================================================
+
+    // Our return success masks, and predicted new features
+    std::vector<uchar> mask_ll, mask_rr;
+    std::vector<cv::KeyPoint> pts_left_new = pts_last[cam_id_left];
+    std::vector<cv::KeyPoint> pts_right_new = pts_last[cam_id_right];
+
+    // Lets track temporally
+// #ifdef ILLIXR_INTEGRATION
+    std::thread t_ll = timed_thread("slam2 matching l", &TrackKLT::perform_matching, this, boost::cref(img_pyramid_last[cam_id_left]), boost::cref(imgpyr_left),
+                                       boost::ref(pts_last[cam_id_left]), boost::ref(pts_left_new), cam_id_left, cam_id_left, boost::ref(mask_ll));
+    std::thread t_rr = timed_thread("slam2 matching r", &TrackKLT::perform_matching, this, boost::cref(img_pyramid_last[cam_id_right]), boost::cref(imgpyr_right),
+                                       boost::ref(pts_last[cam_id_right]), boost::ref(pts_right_new), cam_id_right, cam_id_right, boost::ref(mask_rr));
+// #else /// ILLIXR_INTEGRATION
+//     boost::thread t_ll = boost::thread(&TrackKLT::perform_matching, this, boost::cref(img_pyramid_last[cam_id_left]), boost::cref(imgpyr_left),
+//                                        boost::ref(pts_last[cam_id_left]), boost::ref(pts_left_new), cam_id_left, cam_id_left, boost::ref(mask_ll));
+//     boost::thread t_rr = boost::thread(&TrackKLT::perform_matching, this, boost::cref(img_pyramid_last[cam_id_right]), boost::cref(imgpyr_right),
+//                                        boost::ref(pts_last[cam_id_right]), boost::ref(pts_right_new), cam_id_right, cam_id_right, boost::ref(mask_rr));
+// #endif /// ILLIXR_INTEGRATION
+
+    // Wait till both threads finish
+    t_ll.join();
+    t_rr.join();
+
+    rT4 =  boost::posix_time::microsec_clock::local_time();
+
+
+    //===================================================================================
+    //===================================================================================
+
+
+    // left to right matching
+    // TODO: we should probably still do this to reject outliers
+    // TODO: maybe we should collect all tracks that are in both frames and make they pass this?
+    //std::vector<uchar> mask_lr;
+    //perform_matching(imgpyr_left, imgpyr_right, pts_left_new, pts_right_new, cam_id_left, cam_id_right, mask_lr);
+    rT5 =  boost::posix_time::microsec_clock::local_time();
+
+
+    //===================================================================================
+    //===================================================================================
+
+    // If any of our masks are empty, that means we didn't have enough to do ransac, so just return
+    if(mask_ll.empty() || mask_rr.empty()) {
+        img_last[cam_id_left] = img_left.clone();
+        img_last[cam_id_right] = img_right.clone();
+        img_pyramid_last[cam_id_left] = imgpyr_left;
+        img_pyramid_last[cam_id_right] = imgpyr_right;
+        pts_last[cam_id_left].clear();
+        pts_last[cam_id_right].clear();
+        ids_last[cam_id_left].clear();
+        ids_last[cam_id_right].clear();
+        printf(RED "[KLT-EXTRACTOR]: Failed to get enough points to do RANSAC, resetting....." RESET);
+        return;
+    }
+
+    // Loop through all left points
+    for(size_t i=0; i<pts_left_new.size(); i++) {
+        // Ensure we do not have any bad KLT tracks (i.e., points are negative)
+        if(pts_left_new[i].pt.x < 0 || pts_left_new[i].pt.y < 0)
+            continue;
+        // See if we have the same feature in the right
+        bool found_right = false;
+        size_t index_right = 0;
+        for(size_t n=0; n<ids_last[cam_id_right].size(); n++) {
+            if(ids_last[cam_id_left].at(i)==ids_last[cam_id_right].at(n)) {
+                found_right = true;
+                index_right = n;
+                break;
+            }
+        }
+        // If it is a good track, and also tracked from left to right
+        // Else track it as a mono feature in just the left image
+        if(mask_ll[i] && found_right && mask_rr[index_right]) {
+            // Ensure we do not have any bad KLT tracks (i.e., points are negative)
+            if(pts_right_new.at(index_right).pt.x < 0 || pts_right_new.at(index_right).pt.y < 0)
+                continue;
+            good_left.push_back(pts_left_new.at(i));
+            good_right.push_back(pts_right_new.at(index_right));
+            good_ids_left.push_back(ids_last[cam_id_left].at(i));
+            good_ids_right.push_back(ids_last[cam_id_right].at(index_right));
+            //std::cout << "adding to stereo - " << ids_last[cam_id_left].at(i) << " , " << ids_last[cam_id_right].at(index_right) << std::endl;
+        } else if(mask_ll[i]) {
+            good_left.push_back(pts_left_new.at(i));
+            good_ids_left.push_back(ids_last[cam_id_left].at(i));
+            //std::cout << "adding to left - " << ids_last[cam_id_left].at(i) << std::endl;
+        }
+    }
+
+    // Loop through all right points
+    for(size_t i=0; i<pts_right_new.size(); i++) {
+        // Ensure we do not have any bad KLT tracks (i.e., points are negative)
+        if(pts_right_new[i].pt.x < 0 || pts_right_new[i].pt.y < 0)
+            continue;
+        // See if we have the same feature in the right
+        bool added_already = (std::find(good_ids_right.begin(),good_ids_right.end(),ids_last[cam_id_right].at(i))!=good_ids_right.end());
+        // If it has not already been added as a good feature, add it as a mono track
+        if(mask_rr[i] && !added_already) {
+            good_right.push_back(pts_right_new.at(i));
+            good_ids_right.push_back(ids_last[cam_id_right].at(i));
+            //std::cout << "adding to right - " << ids_last[cam_id_right].at(i) << std::endl;
+        }
+    }
+
+    // Move forward in time
+    img_last[cam_id_left] = img_left.clone();
+    img_last[cam_id_right] = img_right.clone();
+    img_pyramid_last[cam_id_left] = imgpyr_left;
+    img_pyramid_last[cam_id_right] = imgpyr_right;
+    pts_last[cam_id_left] = good_left;
+    pts_last[cam_id_right] = good_right;
+    ids_last[cam_id_left] = good_ids_left;
+    ids_last[cam_id_right] = good_ids_right;
+    rT6 =  boost::posix_time::microsec_clock::local_time();
+
+#ifndef NDEBUG
+    // Timing information
+    const auto pyramid_time = (rT2-rT1).total_microseconds() * 1e-3;
+    const auto detection_time = (rT3-rT2).total_microseconds() * 1e-3;
+    const auto temporal_klt_time = (rT4-rT3).total_microseconds() * 1e-3;
+    const auto stereo_klt_time = (rT5-rT4).total_microseconds() * 1e-3;
+    const auto matching_time = temporal_klt_time + stereo_klt_time;
+    const auto db_time = (rT6-rT5).total_microseconds() * 1e-3;
+    const auto total = (rT6-rT1).total_microseconds() * 1e-3;
+
+    total_images++;
+    total_pyramid_time += pyramid_time;
+    total_detection_time += detection_time;
+    total_matching_time += matching_time;
+    total_db_time += db_time;
+    total_time += total;
+
+    printf(CYAN "[TIME-KLT]: %.4f ms for pyramid\n" RESET, pyramid_time);
+    printf(CYAN "[TIME-KLT]: %.4f ms for detection\n" RESET, detection_time);
+    printf(CYAN "[TIME-KLT]: %.4f ms for temporal klt\n" RESET, temporal_klt_time);
+    printf(CYAN "[TIME-KLT]: %.4f ms for stereo klt\n" RESET, stereo_klt_time);
+    printf(CYAN "[TIME-KLT]: %.4f ms for feature DB update (%d features)\n" RESET, db_time, (int)good_left.size());
+    printf(CYAN "[TIME-KLT]: %.4f ms for total\n" RESET, total);
+
+    printf(WHITE "[AVG-TIME-KLT]: %.4f ms for pyramid\n" RESET, total_pyramid_time / (double) total_images);
+    printf(WHITE "[AVG-TIME-KLT]: %.4f ms for detection\n" RESET, total_detection_time / (double) total_images);
+    printf(WHITE "[AVG-TIME-KLT]: %.4f ms for matching\n" RESET, total_matching_time / (double) total_images);
+    printf(WHITE "[AVG-TIME-KLT]: %.4f ms for feature DB update\n" RESET, total_db_time / (double) total_images);
+    printf(WHITE "[AVG-TIME-KLT]: %.4f ms for total\n" RESET, total_time / (double) total_images);
+#endif /// NDEBUG
+
+}
+
 
 void TrackKLT::feed_stereo(double timestamp, cv::Mat &img_leftin, cv::Mat &img_rightin, size_t cam_id_left, size_t cam_id_right) {
 
@@ -308,6 +522,10 @@ void TrackKLT::feed_stereo(double timestamp, cv::Mat &img_leftin, cv::Mat &img_r
 
     //===================================================================================
     //===================================================================================
+
+    // offload good_ids_left, good_left, good_ids_right, good_right
+    // printf(CYAN "good_left is of size %d\n" RESET, good_left.size());
+    // printf(CYAN "good_right is of size %d\n" RESET, good_right.size());
 
     // Update our feature database, with theses new observations
     for(size_t i=0; i<good_left.size(); i++) {

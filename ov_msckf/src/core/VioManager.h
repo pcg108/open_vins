@@ -225,6 +225,22 @@ namespace ov_msckf {
             return feats_slam_DELAYED;
         }
 
+        std::vector<size_t> get_good_ids_left() {
+            return good_ids_left;
+        }
+
+        std::vector<size_t> get_good_ids_right() {
+            return good_ids_right;
+        }
+
+        std::vector<cv::KeyPoint> get_good_left() {
+            return good_left;
+        }
+
+        std::vector<cv::KeyPoint> get_good_right() {
+            return good_right;
+        }
+
     protected:
 
 
@@ -293,6 +309,9 @@ namespace ov_msckf {
         std::vector<Feature*> feats_MSCKF;
         std::vector<Feature*> feats_slam_UPDATE;
         std::vector<Feature*> feats_slam_DELAYED;
+
+        std::vector<size_t> good_ids_left, good_ids_right;
+        std::vector<cv::KeyPoint> good_left, good_right;
 
     };
 
