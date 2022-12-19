@@ -21,7 +21,7 @@ using namespace ov_msckf;
 
 // Comment in if using ZED instead of offline_imu_cam
 // TODO: Pull from config YAML file
-//#define ZED
+// #define ZED
 
 VioManagerOptions create_params()
 {
@@ -232,13 +232,6 @@ public:
 			cam_buffer = cam;
 			return;
 		}
-		/* This is necsesary in async, to make sure that cam is new
-		   In buffered, cam is new if it is present.
-		   
-		if (cam->time == cam_buffer->time) {
-			return;
-		}
-		*/
 
 
 #ifdef CV_HAS_METRICS
@@ -298,14 +291,6 @@ public:
 				swapped_rot2
 			));
 		}
-
-		// I know, a priori, nobody other plugins subscribe to this topic
-		// Therefore, I can const the cast away, and delete stuff
-		// This fixes a memory leak.
-		// -- Sam at time t1
-		// Turns out, this is no longer correct. debbugview uses it
-		// const_cast<imu_cam_type*>(imu_cam_buffer)->img0.reset();
-		// const_cast<imu_cam_type*>(imu_cam_buffer)->img1.reset();
 		cam_buffer = cam;
 	}
 
