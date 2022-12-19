@@ -21,7 +21,7 @@ using namespace ov_msckf;
 
 // Comment in if using ZED instead of offline_imu_cam
 // TODO: Pull from config YAML file
-//#define ZED
+// #define ZED
 
 VioManagerOptions create_params()
 {
@@ -186,10 +186,11 @@ public:
 	slam2(std::string name_, phonebook* pb_)
 		: plugin{name_, pb_}
 		, sb{pb->lookup_impl<switchboard>()}
+		, _m_rtc{pb->lookup_impl<RelativeClock>()}
 		, _m_pose{sb->get_writer<pose_type>("slow_pose")}
 		, _m_imu_integrator_input{sb->get_writer<imu_integrator_input>("imu_integrator_input")}
+		, _m_cam{sb->get_buffered_reader<cam_type>("cam")}
 		, open_vins_estimator{manager_params}
-		, imu_cam_buffer{nullptr}
 	{
 
         // Disabling OpenCV threading is faster on x86 desktop but slower on
@@ -205,29 +206,33 @@ public:
 
 	virtual void start() override {
 		plugin::start();
-		sb->schedule<imu_cam_type>(id, "imu_cam", [&](switchboard::ptr<const imu_cam_type> datum, std::size_t iteration_no) {
+		sb->schedule<imu_type>(id, "imu", [&](switchboard::ptr<const imu_type> datum, std::size_t iteration_no) {
 			this->feed_imu_cam(datum, iteration_no);
 		});
 	}
 
 
-	void feed_imu_cam(switchboard::ptr<const imu_cam_type> datum, std::size_t iteration_no) {
+	void feed_imu_cam(switchboard::ptr<const imu_type> datum, std::size_t iteration_no) {
 		// Ensures that slam doesnt start before valid IMU readings come in
-		if (datum == NULL) {
+		if (datum == nullptr) {
 			return;
 		}
 
 		// Feed the IMU measurement. There should always be IMU data in each call to feed_imu_cam
-		assert((datum->img0.has_value() && datum->img1.has_value()) || (!datum->img0.has_value() && !datum->img1.has_value()));
-		open_vins_estimator.feed_measurement_imu(duration2double(datum->time.time_since_epoch()), datum->angular_v.cast<double>(), datum->linear_a.cast<double>());
+		open_vins_estimator.feed_measurement_imu(duration2double(datum->time.time_since_epoch()), datum->angular_v, datum->linear_a);
 
+		switchboard::ptr<const cam_type> cam;
+		// Buffered Async:
+		cam = _m_cam.size() == 0 ? nullptr : _m_cam.dequeue();
 		// If there is not cam data this func call, break early
-		if (!datum->img0.has_value() && !datum->img1.has_value()) {
-			return;
-		} else if (imu_cam_buffer == NULL) {
-			imu_cam_buffer = datum;
+		if (!cam) {
 			return;
 		}
+		if (!cam_buffer) {
+			cam_buffer = cam;
+			return;
+		}
+
 
 #ifdef CV_HAS_METRICS
 		cv::metrics::setAccount(new std::string{std::to_string(iteration_no)});
@@ -238,9 +243,9 @@ public:
 #warning "No OpenCV metrics available. Please recompile OpenCV from git clone --branch 3.4.6-instrumented https://github.com/ILLIXR/opencv/. (see install_deps.sh)"
 #endif
 
-		cv::Mat img0{imu_cam_buffer->img0.value()};
-		cv::Mat img1{imu_cam_buffer->img1.value()};
-		open_vins_estimator.feed_measurement_stereo(duration2double(imu_cam_buffer->time.time_since_epoch()), img0, img1, 0, 1);
+		cv::Mat img0{cam_buffer->img0};
+		cv::Mat img1{cam_buffer->img1};
+		open_vins_estimator.feed_measurement_stereo(duration2double(cam_buffer->time.time_since_epoch()), img0, img1, 0, 1);
 
 		// Get the pose returned from SLAM
 		state = open_vins_estimator.get_state();
@@ -261,12 +266,8 @@ public:
         assert(isfinite(swapped_pos[2]));
 
 		if (open_vins_estimator.initialized()) {
-			if (isUninitialized) {
-				isUninitialized = false;
-			}
-
 			_m_pose.put(_m_pose.allocate(
-				imu_cam_buffer->time,
+				cam_buffer->time,
 				swapped_pos,
 				swapped_rot
 			));
@@ -290,30 +291,23 @@ public:
 				swapped_rot2
 			));
 		}
-
-		// I know, a priori, nobody other plugins subscribe to this topic
-		// Therefore, I can const the cast away, and delete stuff
-		// This fixes a memory leak.
-		// -- Sam at time t1
-		// Turns out, this is no longer correct. debbugview uses it
-		// const_cast<imu_cam_type*>(imu_cam_buffer)->img0.reset();
-		// const_cast<imu_cam_type*>(imu_cam_buffer)->img1.reset();
-		imu_cam_buffer = datum;
+		cam_buffer = cam;
 	}
 
 	virtual ~slam2() override {}
 
 private:
 	const std::shared_ptr<switchboard> sb;
+	std::shared_ptr<RelativeClock> _m_rtc; 
 	switchboard::writer<pose_type> _m_pose;
-    switchboard::writer<imu_integrator_input> _m_imu_integrator_input;
+	switchboard::writer<imu_integrator_input> _m_imu_integrator_input;
 	State *state;
+
+	switchboard::ptr<const cam_type> cam_buffer;
+	switchboard::buffered_reader<cam_type> _m_cam;
 
 	VioManagerOptions manager_params = create_params();
 	VioManager open_vins_estimator;
-
-	switchboard::ptr<const imu_cam_type> imu_cam_buffer;
-	bool isUninitialized = true;
 };
 
 PLUGIN_MAIN(slam2)
