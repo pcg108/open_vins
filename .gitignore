@@ -1,7 +1,10 @@
-cmake-build-debug
+cmake-build-*
 build
 Build
 *.*~
 .idea
 doxgen_generated
-*.so
+*.swp
+*.swo
+doc
+.vscode
