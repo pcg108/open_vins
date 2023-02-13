@@ -5,6 +5,7 @@ find_package(catkin QUIET COMPONENTS roscpp rosbag tf std_msgs geometry_msgs sen
 
 # Describe ROS project
 option(ENABLE_ROS "Enable or disable building with ROS (if it is found)" ON)
+option(RUN_ILLXIR "Toggle if using ILLIXR or not" OFF)
 if (catkin_FOUND AND ENABLE_ROS)
     add_definitions(-DROS_AVAILABLE=1)
     catkin_package(
@@ -150,6 +151,23 @@ install(TARGETS test_sim_repeat
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
+##################################################
+# ILLIXR 
+##################################################
+if (RUN_ILLXIR)
+
+add_executable(run_serial_msckf src/run_illixr_stal.cpp)
+target_link_libraries(run_serial_msckf ov_msckf_lib ${thirdparty_libraries})
+install(TARGETS run_serial_msckf
+        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+add_library(slam2 SHARED src/run_illixr.cpp)
+target_link_libraries(slam2 ov_msckf_lib ${thirdparty_libraries})
+
+endif()
 
 ##################################################
 # Launch files!
