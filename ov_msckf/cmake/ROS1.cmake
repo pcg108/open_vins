@@ -156,9 +156,9 @@ install(TARGETS test_sim_repeat
 ##################################################
 if (RUN_ILLXIR)
 
-add_executable(run_serial_msckf src/run_illixr_stal.cpp)
-target_link_libraries(run_serial_msckf ov_msckf_lib ${thirdparty_libraries})
-install(TARGETS run_serial_msckf
+add_executable(run_illixr_stal src/run_illixr_stal.cpp)
+target_link_libraries(run_illixr_stal ov_msckf_lib ${thirdparty_libraries})
+install(TARGETS run_illixr_stal
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

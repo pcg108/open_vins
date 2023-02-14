@@ -12,14 +12,12 @@ cd open_vins/ILLIXR/
 make [opt|dbg]
 ```
 
-
-
 ## Running OpenVINS Standalone
 
 Now to run OpenVINS Standalone do the following:
 ```
-cd build/ov_msckf
-./run_illixr_msckf <path_to_cam0> <path_to_cam1> <path_to_imu0> <path_to_cam0_images> <path_to_cam1_images>
+cd build/[RelWithDebInfo|Debug]
+./run_illixr_stal <path_to_config> <path_to_cam0> <path_to_cam1> <path_to_imu0> <path_to_cam0_images> <path_to_cam1_images>
 ```
 
 When running OpenVINS we assume the data is formatted in the [EUROC Dataset standard](https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets).
