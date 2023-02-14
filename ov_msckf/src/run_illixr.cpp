@@ -35,6 +35,7 @@
 #include <iostream>
 #include <algorithm>
 #include <memory>
+#include <boost/filesystem.hpp>
 
 #include "../../ILLIXR/common/plugin.hpp"
 #include "../../ILLIXR/common/switchboard.hpp"
@@ -59,6 +60,7 @@ public:
 		, _m_pose{sb->get_writer<pose_type>("slow_pose")}
 		, _m_imu_integrator_input{sb->get_writer<imu_integrator_input>("imu_integrator_input")}
 		, _m_cam{sb->get_buffered_reader<cam_type>("cam")}
+		, root_path{getenv("OPENVINS_ROOT")}
 	{
 		/*
         Disabling OpenCV threading is faster on x86 desktop but slower on
@@ -68,8 +70,8 @@ public:
         // cv::setNumThreads(0);
 
         VioManagerOptions manager_params;
-		std::string config_path = "/home/henrydc/tinker/ILLIXR/ILLIXR-Repos/open_vins/config/euroc_mav/estimator_config.yaml";
-		auto parser = std::make_shared<ov_core::YamlParser>(config_path);
+		boost::filesystem::path config_path = root_path / "config" / "euroc_mav" / "estimator_config.yaml";
+		auto parser = std::make_shared<ov_core::YamlParser>(config_path.string());
 		manager_params.print_and_load(parser);
 
 #ifndef NDEBUG
@@ -198,8 +200,7 @@ private:
 	std::shared_ptr<State> state;
 	std::shared_ptr<VioManager> open_vins_estimator;
 
-	std::ofstream dumped_pose;
-	
+	boost::filesystem::path root_path;
 };
 
 PLUGIN_MAIN(slam2)

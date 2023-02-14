@@ -36,8 +36,6 @@ using namespace ov_msckf;
 
 std::shared_ptr<VioManager> sys;
 
-std::shared_ptr<State> state;
-
 struct vel_acc_vector {
     double x, y, z;
 };
@@ -106,9 +104,8 @@ void load_imu_data(const string &file_name, unordered_map<double, imu_data> &imu
 
 // Main function
 int main(int argc, char** argv) {
-
-    if (argc != 6) {
-        cerr << "Usage: ./run_serial_msckf path_to_cam0 path_to_cam1 path_to_imu0 path_to_cam0_images path_to_cam1_images" << endl;
+    if (argc != 7) {
+        cerr << "Usage: ./run_illixr_stal path_to_config path_to_cam0 path_to_cam1 path_to_imu0 path_to_cam0_images path_to_cam1_images" << endl;
         return 1;
     }
 
@@ -118,11 +115,12 @@ int main(int argc, char** argv) {
     vector<double> cam0_timestamps;
     vector<double> cam1_timestamps;
     vector<double> imu0_timestamps;
-    string cam0_filename = string(argv[1]);
-    string cam1_filename = string(argv[2]);
-    string imu0_filename = string(argv[3]);
-    string cam0_images_path = string(argv[4]);
-    string cam1_images_path = string(argv[5]);
+    string config_path = string(argv[1]);
+    string cam0_filename = string(argv[2]);
+    string cam1_filename = string(argv[3]);
+    string imu0_filename = string(argv[4]);
+    string cam0_images_path = string(argv[5]);
+    string cam1_images_path = string(argv[6]);
 
     load_images(cam0_filename, cam0_images, cam0_timestamps);
     load_images(cam1_filename, cam1_images, cam1_timestamps);
@@ -138,10 +136,9 @@ int main(int argc, char** argv) {
 
     // Create our VIO system
     VioManagerOptions params;
-    std::string config_path = "/home/henrydc/tinker/ILLIXR/cloned/open_vins/config/euroc_mav/estimator_config.yaml";
 	auto parser = std::make_shared<ov_core::YamlParser>(config_path);
 	params.print_and_load(parser);
-    std::cout << "[DEBUG] params: cameras, intrinsics, and extrinsics:  " << params.state_options.num_cameras << " \ " << (int)params.camera_intrinsics.size() << " \ " << (int)params.camera_extrinsics.size() << "\n";
+    std::cout << "[DEBUG] params: cameras, intrinsics, and extrinsics:  " << params.state_options.num_cameras << " \\ " << (int)params.camera_intrinsics.size() << " \\ " << (int)params.camera_extrinsics.size() << "\n";
     sys = std::make_shared<VioManager>(params);
 
     // Disabling OpenCV threading is faster on x86 desktop but slower on
@@ -265,12 +262,6 @@ int main(int argc, char** argv) {
 				cam_datum.masks.push_back(white_mask);
                 sys->feed_measurement_camera(cam_datum);
                 std::cout << time_buffer << std::endl;
-            
-                state = sys->get_state();
-                double timestamp = state->_timestamp;
-                Eigen::Vector4d quat = state->_imu->quat();
-                Eigen::Vector3d pose = state->_imu->pos();
-
             }
 
             // reset bools
