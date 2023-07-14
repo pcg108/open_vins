@@ -20,10 +20,6 @@
  */
 #include "TrackKLT.h"
 
-#ifdef ILLIXR_INTEGRATION
-#include "../../../ov_msckf/src/common/cpu_timer.hpp"
-#endif /// ILLIXR_INTEGRATION
-
 using namespace ov_core;
 
 
@@ -145,8 +141,8 @@ void TrackKLT::feed_stereo(double timestamp, cv::Mat &img_leftin, cv::Mat &img_r
     cv::Mat img_left, img_right;
 #ifdef ILLIXR_INTEGRATION
     // Histogram equalize
-    std::thread t_lhe = timed_thread("slam2 hist l", cv::equalizeHist, cv::_InputArray(img_leftin ), cv::_OutputArray(img_left ));
-    std::thread t_rhe = timed_thread("slam2 hist r", cv::equalizeHist, cv::_InputArray(img_rightin), cv::_OutputArray(img_right));
+    std::thread t_lhe = std::thread(cv::equalizeHist, cv::_InputArray(img_leftin ), cv::_OutputArray(img_left ));
+    std::thread t_rhe = std::thread(cv::equalizeHist, cv::_InputArray(img_rightin), cv::_OutputArray(img_right));
 #else /// ILLIXR_INTEGRATION
     boost::thread t_lhe = boost::thread(cv::equalizeHist, boost::cref(img_leftin), boost::ref(img_left));
     boost::thread t_rhe = boost::thread(cv::equalizeHist, boost::cref(img_rightin), boost::ref(img_right));
@@ -157,10 +153,10 @@ void TrackKLT::feed_stereo(double timestamp, cv::Mat &img_leftin, cv::Mat &img_r
     // Extract image pyramids (boost seems to require us to put all the arguments even if there are defaults....)
     std::vector<cv::Mat> imgpyr_left, imgpyr_right;
 #ifdef ILLIXR_INTEGRATION
-    std::thread t_lp = timed_thread("slam2 pyramid l", &cv::buildOpticalFlowPyramid, cv::_InputArray(img_left),
+    std::thread t_lp = std::thread(&cv::buildOpticalFlowPyramid, cv::_InputArray(img_left),
                                        cv::_OutputArray(imgpyr_left), win_size, pyr_levels, false,
                                        cv::BORDER_REFLECT_101, cv::BORDER_CONSTANT, true);
-    std::thread t_rp = timed_thread("slam2 pyramid r", &cv::buildOpticalFlowPyramid, cv::_InputArray(img_right),
+    std::thread t_rp = std::thread(&cv::buildOpticalFlowPyramid, cv::_InputArray(img_right),
                                        cv::_OutputArray(imgpyr_right), win_size, pyr_levels,
                                        false, cv::BORDER_REFLECT_101, cv::BORDER_CONSTANT, true);
 #else /// ILLIXR_INTEGRATION
@@ -207,9 +203,9 @@ void TrackKLT::feed_stereo(double timestamp, cv::Mat &img_leftin, cv::Mat &img_r
 
     // Lets track temporally
 #ifdef ILLIXR_INTEGRATION
-    std::thread t_ll = timed_thread("slam2 matching l", &TrackKLT::perform_matching, this, boost::cref(img_pyramid_last[cam_id_left]), boost::cref(imgpyr_left),
+    std::thread t_ll = std::thread(&TrackKLT::perform_matching, this, boost::cref(img_pyramid_last[cam_id_left]), boost::cref(imgpyr_left),
                                        boost::ref(pts_last[cam_id_left]), boost::ref(pts_left_new), cam_id_left, cam_id_left, boost::ref(mask_ll));
-    std::thread t_rr = timed_thread("slam2 matching r", &TrackKLT::perform_matching, this, boost::cref(img_pyramid_last[cam_id_right]), boost::cref(imgpyr_right),
+    std::thread t_rr = std::thread(&TrackKLT::perform_matching, this, boost::cref(img_pyramid_last[cam_id_right]), boost::cref(imgpyr_right),
                                        boost::ref(pts_last[cam_id_right]), boost::ref(pts_right_new), cam_id_right, cam_id_right, boost::ref(mask_rr));
 #else /// ILLIXR_INTEGRATION
     boost::thread t_ll = boost::thread(&TrackKLT::perform_matching, this, boost::cref(img_pyramid_last[cam_id_left]), boost::cref(imgpyr_left),
