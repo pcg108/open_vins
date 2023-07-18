@@ -26,7 +26,7 @@
 #include "utils/quat_ops.h"
 
 #ifdef ILLIXR_INTEGRATION
-#include "common/data_format.hpp"
+#include "illixr/data_format.hpp"
 #endif /// ILLIXR_INTEGRATION
 
 

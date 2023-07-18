@@ -31,7 +31,11 @@
 #include <Eigen/Eigen>
 #include <Eigen/StdVector>
 
+#ifdef USING_OPENCV4
+#include <opencv2/core.hpp>
+#else
 #include <opencv/cv.hpp>
+#endif
 #include <opencv2/core/core.hpp>
 
 

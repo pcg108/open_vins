@@ -1,6 +1,10 @@
 #include <functional>
 
+#ifdef USING_OPENCV4
+#include <opencv2/core.hpp>
+#else
 #include <opencv/cv.hpp>
+#endif
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
@@ -10,11 +14,11 @@
 #include "core/VioManager.h"
 #include "state/State.h"
 
-#include "common/plugin.hpp"
-#include "common/switchboard.hpp"
-#include "common/data_format.hpp"
-#include "common/phonebook.hpp"
-#include "common/relative_clock.hpp"
+#include "illixr/plugin.hpp"
+#include "illixr/switchboard.hpp"
+#include "illixr/data_format.hpp"
+#include "illixr/phonebook.hpp"
+#include "illixr/relative_clock.hpp"
 
 using namespace ILLIXR;
 using namespace ov_msckf;
