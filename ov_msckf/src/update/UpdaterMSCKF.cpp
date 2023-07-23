@@ -19,15 +19,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 #include "UpdaterMSCKF.h"
+#include <android/log.h>
 
+#define LOGM(...) ((void)__android_log_print(ANDROID_LOG_INFO, "updaterMSCKF", __VA_ARGS__))
 
 
 using namespace ov_core;
 using namespace ov_msckf;
-
-
-
-
 
 void UpdaterMSCKF::update(State *state, std::vector<Feature*>& feature_vec) {
 
@@ -36,7 +34,7 @@ void UpdaterMSCKF::update(State *state, std::vector<Feature*>& feature_vec) {
         return;
 
     // Start timing
-    boost::posix_time::ptime rT0, rT1, rT2, rT3, rT4, rT5, rT6, rT7;
+    boost::posix_time::ptime rT0, rT1, rT2, rT3, rT4, rT5;//, rT6, rT7;
     rT0 =  boost::posix_time::microsec_clock::local_time();
 
     // 0. Get all timestamps our clones are at (and thus valid measurement times)
@@ -68,6 +66,7 @@ void UpdaterMSCKF::update(State *state, std::vector<Feature*>& feature_vec) {
         }
 
     }
+    LOGM("Size after cleanup %lu", feature_vec.size());
     rT1 =  boost::posix_time::microsec_clock::local_time();
 
     // 2. Create vector of cloned *CAMERA* poses at each of our clone timesteps
@@ -201,6 +200,7 @@ void UpdaterMSCKF::update(State *state, std::vector<Feature*>& feature_vec) {
         if(chi2 > _options.chi2_multipler*chi2_check) {
             (*it2)->to_delete = true;
             it2 = feature_vec.erase(it2);
+            LOGM("Returning here %f %d %f", chi2, _options.chi2_multipler, chi2_check);
             //cout << "featid = " << feat.featid << endl;
             //cout << "chi2 = " << chi2 << " > " << _options.chi2_multipler*chi2_check << endl;
             //cout << "res = " << endl << res.transpose() << endl;
@@ -240,6 +240,7 @@ void UpdaterMSCKF::update(State *state, std::vector<Feature*>& feature_vec) {
 
     // Return if we don't have anything and resize our matrices
     if(ct_meas < 1) {
+        LOGM("RETURN CT_MESS");
         return;
     }
     assert(ct_meas<=max_meas_size);
@@ -264,12 +265,12 @@ void UpdaterMSCKF::update(State *state, std::vector<Feature*>& feature_vec) {
     rT5 =  boost::posix_time::microsec_clock::local_time();
 
     // Debug print timing information
-    //printf("[MSCKF-UP]: %.4f seconds to clean\n",(rT1-rT0).total_microseconds() * 1e-6);
-    //printf("[MSCKF-UP]: %.4f seconds to triangulate\n",(rT2-rT1).total_microseconds() * 1e-6);
-    //printf("[MSCKF-UP]: %.4f seconds create system (%d features)\n",(rT3-rT2).total_microseconds() * 1e-6, (int)feature_vec.size());
-    //printf("[MSCKF-UP]: %.4f seconds compress system\n",(rT4-rT3).total_microseconds() * 1e-6);
-    //printf("[MSCKF-UP]: %.4f seconds update state (%d size)\n",(rT5-rT4).total_microseconds() * 1e-6, (int)res_big.rows());
-    //printf("[MSCKF-UP]: %.4f seconds total\n",(rT5-rT1).total_microseconds() * 1e-6);
+    LOGM("[MSCKF-UP]: %.4f seconds to clean\n",(rT1-rT0).total_microseconds() * 1e-6);
+    LOGM("[MSCKF-UP]: %.4f seconds to triangulate\n",(rT2-rT1).total_microseconds() * 1e-6);
+    LOGM("[MSCKF-UP]: %.4f seconds create system (%d features)\n",(rT3-rT2).total_microseconds() * 1e-6, (int)feature_vec.size());
+    LOGM("[MSCKF-UP]: %.4f seconds compress system\n",(rT4-rT3).total_microseconds() * 1e-6);
+    LOGM("[MSCKF-UP]: %.4f seconds update state (%d size)\n",(rT5-rT4).total_microseconds() * 1e-6, (int)res_big.rows());
+    LOGM("[MSCKF-UP]: %.4f seconds total\n",(rT5-rT1).total_microseconds() * 1e-6);
 
 }
 

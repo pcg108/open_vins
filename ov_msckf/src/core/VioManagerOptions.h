@@ -26,12 +26,12 @@
 #include <Eigen/Eigen>
 
 
-#include "state/StateOptions.h"
-#include "state/Propagator.h"
-#include "update/UpdaterOptions.h"
-#include "feat/FeatureInitializerOptions.h"
-#include "utils/colors.h"
-#include "utils/quat_ops.h"
+#include "../state/StateOptions.h"
+#include "../state/Propagator.h"
+#include "../update/UpdaterOptions.h"
+#include "../ov_core/src/feat/FeatureInitializerOptions.h"
+#include "../ov_core/src/utils/colors.h"
+#include "../ov_core/src/utils/quat_ops.h"
 
 
 using namespace std;

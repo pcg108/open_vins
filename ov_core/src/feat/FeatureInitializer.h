@@ -25,7 +25,7 @@
 
 #include "Feature.h"
 #include "FeatureInitializerOptions.h"
-#include "utils/quat_ops.h"
+#include "../utils/quat_ops.h"
 
 namespace ov_core {
 

@@ -23,8 +23,7 @@
 
 #include "Vec.h"
 #include "JPLQuat.h"
-#include "utils/quat_ops.h"
-
+#include "../utils/quat_ops.h"
 
 namespace ov_type {
 

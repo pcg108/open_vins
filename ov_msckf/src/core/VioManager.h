@@ -28,19 +28,19 @@
 #include <Eigen/StdVector>
 #include <boost/filesystem.hpp>
 
-#include "track/TrackAruco.h"
-#include "track/TrackDescriptor.h"
-#include "track/TrackKLT.h"
-#include "track/TrackSIM.h"
-#include "init/InertialInitializer.h"
-#include "types/LandmarkRepresentation.h"
-#include "types/Landmark.h"
+//#include "track/TrackAruco.h"
+#include "../ov_core/src/track/TrackDescriptor.h"
+#include "../ov_core/src/track/TrackKLT.h"
+#include "../ov_core/src/track/TrackSIM.h"
+#include "../ov_core/src/init/InertialInitializer.h"
+#include "../ov_core/src/types/LandmarkRepresentation.h"
+#include "../ov_core/src/types/Landmark.h"
 
-#include "state/Propagator.h"
-#include "state/State.h"
-#include "state/StateHelper.h"
-#include "update/UpdaterMSCKF.h"
-#include "update/UpdaterSLAM.h"
+#include "../state/Propagator.h"
+#include "../state/State.h"
+#include "../state/StateHelper.h"
+#include "../update/UpdaterMSCKF.h"
+#include "../update/UpdaterSLAM.h"
 
 #include "VioManagerOptions.h"
 
@@ -117,9 +117,9 @@ namespace ov_msckf {
 
             // Cleanup any features older then the initialization time
             trackFEATS->get_feature_database()->cleanup_measurements(state->_timestamp);
-            if(trackARUCO != nullptr) {
-                trackARUCO->get_feature_database()->cleanup_measurements(state->_timestamp);
-            }
+//            if(trackARUCO != nullptr) {
+//                trackARUCO->get_feature_database()->cleanup_measurements(state->_timestamp);
+//            }
 
             // Print what we init'ed with
             printf(GREEN "[INIT]: INITIALIZED FROM GROUNDTRUTH FILE!!!!!\n" RESET);
@@ -158,9 +158,9 @@ namespace ov_msckf {
         }
 
         /// Get aruco feature tracker
-        TrackBase* get_track_aruco() {
-            return trackARUCO;
-        }
+//        TrackBase* get_track_aruco() {
+//            return trackARUCO;
+//        }
 
         /// Returns 3d features used in the last update in global frame
         std::vector<Eigen::Vector3d> get_good_features_MSCKF() {

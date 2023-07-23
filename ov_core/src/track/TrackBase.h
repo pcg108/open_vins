@@ -30,14 +30,15 @@
 #include <Eigen/StdVector>
 
 #include <boost/thread.hpp>
-#include <opencv/cv.hpp>
+#include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/calib3d.hpp>
 
 #include "Grider_FAST.h"
 #include "Grider_DOG.h"
-#include "feat/FeatureDatabase.h"
-#include "utils/colors.h"
+#include "../feat/FeatureDatabase.h"
+#include "../utils/colors.h"
 
 
 namespace ov_core {

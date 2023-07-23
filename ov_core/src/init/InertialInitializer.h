@@ -22,8 +22,8 @@
 #define OV_CORE_INERTIALINITIALIZER_H
 
 #include <Eigen/Eigen>
-#include "utils/quat_ops.h"
-#include "utils/colors.h"
+#include "../utils/quat_ops.h"
+#include "../utils/colors.h"
 
 namespace ov_core {
 
