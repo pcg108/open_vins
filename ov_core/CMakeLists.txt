@@ -14,7 +14,7 @@ find_package(OpenCV REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system filesystem thread date_time)
 
 # display message to user
-message(STATUS "EIGEN VERSION: " ${EIGEN3_VERSION})
+message(STATUS "EIGEN VERSION: " ${Eigen3_VERSION})
 message(STATUS "OPENCV VERSION: " ${OpenCV_VERSION})
 message(STATUS "BOOST VERSION: " ${Boost_VERSION})
 if(${OpenCV_VERSION_MAJOR} EQUAL 4)
@@ -44,7 +44,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -Wall -Wuninitialized")
 include_directories(
         src
         ${OpenCV_INCLUDE_DIR}
-        ${EIGEN3_INCLUDE_DIR}
+        ${Eigen3_INCLUDE_DIR}
         ${Boost_INCLUDE_DIRS}
         ${catkin_INCLUDE_DIRS}
 )
@@ -76,7 +76,9 @@ target_link_libraries(ov_core_lib ${thirdparty_libraries})
 target_include_directories(ov_core_lib PUBLIC src)
 set_property(TARGET ov_core_lib PROPERTY CXX_STANDARD 17)
 
-
+if(ILLIXR_INTEGRATION)
+    install(TARGETS ov_core_lib DESTINATION lib)
+endif()
 ##################################################
 # Make binary files!
 ##################################################

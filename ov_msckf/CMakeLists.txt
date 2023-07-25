@@ -17,7 +17,7 @@ find_package(OpenCV REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system filesystem thread date_time)
 
 # display message to user
-message(STATUS "EIGEN VERSION: " ${EIGEN3_VERSION})
+message(STATUS "EIGEN VERSION: " ${Eigen3_VERSION})
 message(STATUS "OPENCV VERSION: " ${OpenCV_VERSION})
 message(STATUS "BOOST VERSION: " ${Boost_VERSION})
 if(${OpenCV_VERSION_MAJOR} EQUAL 4)
@@ -44,7 +44,7 @@ if (ILLIXR_INTEGRATION)
     include_directories(${ILLIXR_ROOT}
             src
             ${OpenCV_INCLUDE_DIR}
-            ${EIGEN3_INCLUDE_DIR}
+            ${Eigen3_INCLUDE_DIR}
             ${Boost_INCLUDE_DIRS}
             ${catkin_INCLUDE_DIRS}
             )
@@ -57,7 +57,7 @@ else()
     include_directories(
             src
             ${OpenCV_INCLUDE_DIR}
-            ${EIGEN3_INCLUDE_DIR}
+            ${Eigen3_INCLUDE_DIR}
             ${Boost_INCLUDE_DIRS}
             ${catkin_INCLUDE_DIRS}
     )
@@ -110,9 +110,13 @@ set_property(TARGET ov_msckf_lib PROPERTY CXX_STANDARD 17)
 ##################################################
 
 if (ILLIXR_INTEGRATION)
-    add_library(slam2 SHARED src/slam2.cpp)
-    target_link_libraries(slam2 ov_msckf_lib ${thirdparty_libraries})
-    set_property(TARGET slam2 PROPERTY CXX_STANDARD 17)
+    set(PLUGIN_NAME plugin.slam2${ILLIXR_BUILD_SUFFIX})
+    add_library(${PLUGIN_NAME} SHARED src/slam2.cpp)
+    target_include_directories(${PLUGIN_NAME} PUBLIC ${ILLIXR_ROOT})
+    target_link_libraries(${PLUGIN_NAME} ov_msckf_lib ${thirdparty_libraries})
+    set_property(TARGET ${PLUGIN_NAME} PROPERTY CXX_STANDARD 17)
+    install(TARGETS ov_msckf_lib DESTINATION lib)
+    install(TARGETS ${PLUGIN_NAME} DESTINATION lib)
 else()
     add_executable(run_illixr_msckf src/run_illixr_msckf.cpp)
     target_link_libraries(run_illixr_msckf ov_msckf_lib ${thirdparty_libraries})
