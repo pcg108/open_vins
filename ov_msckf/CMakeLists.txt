@@ -44,7 +44,7 @@ if (ILLIXR_INTEGRATION)
     include_directories(${ILLIXR_ROOT}
             src
             ${OpenCV_INCLUDE_DIR}
-            ${Eigen3_INCLUDE_DIR}
+            ${EIGEN3_INCLUDE_DIR}
             ${Boost_INCLUDE_DIRS}
             ${catkin_INCLUDE_DIRS}
             )
@@ -57,7 +57,7 @@ else()
     include_directories(
             src
             ${OpenCV_INCLUDE_DIR}
-            ${Eigen3_INCLUDE_DIR}
+            ${EIGEN3_INCLUDE_DIR}
             ${Boost_INCLUDE_DIRS}
             ${catkin_INCLUDE_DIRS}
     )
