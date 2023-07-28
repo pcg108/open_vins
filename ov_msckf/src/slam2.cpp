@@ -21,7 +21,7 @@ using namespace ov_msckf;
 
 // Comment in if using ZED instead of offline_imu_cam
 // TODO: Pull from config YAML file
-#define ZED
+// #define ZED
 
 VioManagerOptions create_params()
 {
@@ -227,7 +227,7 @@ public:
 		open_vins_estimator.feed_measurement_imu(duration2double(datum->time.time_since_epoch()), datum->angular_v, datum->linear_a);
 
 		switchboard::ptr<const cam_type> cam;
-		// Buffered Async:
+		// Camera data can only go downstream when there's at least one IMU sample whose timestamp is larger than the camera data's.
 		cam = (cam_buffer == nullptr && _m_cam.size() > 0) ? _m_cam.dequeue() : nullptr;
 		// If there is not cam data this func call, break early
 		if (!cam_buffer && !cam) {
