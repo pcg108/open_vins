@@ -10,18 +10,18 @@
 #include "core/VioManager.h"
 #include "state/State.h"
 
-#include "../../../common/plugin.hpp"
-#include "../../../common/switchboard.hpp"
-#include "../../../common/data_format.hpp"
-#include "../../../common/phonebook.hpp"
-#include "../../../common/relative_clock.hpp"
+#include "common/plugin.hpp"
+#include "common/switchboard.hpp"
+#include "common/data_format.hpp"
+#include "common/phonebook.hpp"
+#include "common/relative_clock.hpp"
 //#include "common/log_service.hpp"
 #include <android/log.h>
 #include <fstream>
 #include <chrono>
 
 #define ILLIXR_INTEGRATION 1
-#define ANDROID_CAM 1
+//#define ANDROID_CAM 1
 //#define ZED 1
 #define LOGS(...) ((void)__android_log_print(ANDROID_LOG_INFO, "slam2", __VA_ARGS__))
 
@@ -131,7 +131,7 @@ VioManagerOptions create_params()
 	extrinsics_1.block(0, 0, 4, 1) = rot_2_quat(T_CtoI_1.block(0, 0, 3, 3).transpose());
 	extrinsics_1.block(4, 0, 3, 1) = -T_CtoI_1.block(0, 0, 3, 3).transpose() * T_CtoI_1.block(0, 3, 3, 1);
 
-    params.state_options.num_cameras = 1;
+    params.state_options.num_cameras = 2;
     params.use_stereo = false;
     if(params.state_options.num_cameras == 2) {
         params.camera_fisheye.insert({1, false});
@@ -164,11 +164,11 @@ VioManagerOptions create_params()
   // Hand tuned
   params.num_pts = 200;
 #elif ANDROID_CAM
-    params.num_pts = 100;
-//	params.num_pts = 150;
+//    params.num_pts = 100;
+	params.num_pts = 150;
 
 #else
-  //params.num_pts = 150;
+  params.num_pts = 150;
 #endif
 	params.msckf_options.chi2_multipler = 1;
 	params.knn_ratio = .7;
@@ -177,23 +177,23 @@ VioManagerOptions create_params()
 	params.state_options.do_fej = true;
 	params.state_options.use_rk4_integration = true;
 
-//	params.state_options.do_calib_camera_pose = true;
-//	params.state_options.do_calib_camera_intrinsics = true;
-//	params.state_options.do_calib_camera_timeoffset = true;
+	params.state_options.do_calib_camera_pose = true;
+	params.state_options.do_calib_camera_intrinsics = true;
+	params.state_options.do_calib_camera_timeoffset = true;
 
-    params.state_options.do_calib_camera_pose = false;
-    params.state_options.do_calib_camera_intrinsics = false;
-    params.state_options.do_calib_camera_timeoffset = false;
+//    params.state_options.do_calib_camera_pose = false;
+//    params.state_options.do_calib_camera_intrinsics = false;
+//    params.state_options.do_calib_camera_timeoffset = false;
 
 	params.dt_slam_delay = 3.0;
-//
-//	params.state_options.max_slam_features = 50;
-//    params.state_options.max_slam_in_update = 25;
-//    params.state_options.max_msckf_in_update = 999;
 
-    params.state_options.max_slam_features = 20;
-    params.state_options.max_slam_in_update = 10;
-    params.state_options.max_msckf_in_update = 100;
+	params.state_options.max_slam_features = 50;
+    params.state_options.max_slam_in_update = 25;
+    params.state_options.max_msckf_in_update = 999;
+
+//    params.state_options.max_slam_features = 20;
+//    params.state_options.max_slam_in_update = 10;
+//    params.state_options.max_msckf_in_update = 100;
 
 #ifdef ZED
   // Pixel noise; ZED works with defaults values but these may better account for rolling shutter
@@ -208,10 +208,6 @@ VioManagerOptions create_params()
   params.imu_noises.sigma_w = 0.00024213;  // Gyroscope noise
   params.imu_noises.sigma_wb = 1.9393e-05; // Gyroscope random walk
 #elif ANDROID_CAM
-//	params.msckf_options.chi2_multipler = 100000;
-//	params.msckf_options.sigma_pix = 5;
-//	params.slam_options.chi2_multipler = 100000;
-//	params.slam_options.sigma_pix = 5;
     params.imu_noises.sigma_a = 16.0e-2;//0.0008413706241709801;  // Accelerometer noise
     params.imu_noises.sigma_ab = 5.5e-4;//0.00018303491436613277; // Accelerometer random walk
     params.imu_noises.sigma_w = 24.0e-3;//0.00011348681439197019;  // Gyroscope noise
@@ -223,9 +219,9 @@ VioManagerOptions create_params()
 
 	params.use_aruco = false;
 
-	//params.state_options.feat_rep_slam = LandmarkRepresentation::from_string("ANCHORED_MSCKF_INVERSE_DEPTH");
-	//params.state_options.feat_rep_slam = LandmarkRepresentation::from_string("ANCHORED_FULL_INVERSE_DEPTH");
-    //params.state_options.feat_rep_aruco = LandmarkRepresentation::from_string("ANCHORED_FULL_INVERSE_DEPTH");
+//	params.state_options.feat_rep_slam = LandmarkRepresentation::from_string("ANCHORED_MSCKF_INVERSE_DEPTH");
+//	params.state_options.feat_rep_slam = LandmarkRepresentation::from_string("ANCHORED_FULL_INVERSE_DEPTH");
+//  params.state_options.feat_rep_aruco = LandmarkRepresentation::from_string("ANCHORED_FULL_INVERSE_DEPTH");
 
 	return params;
 }
@@ -246,7 +242,7 @@ public:
 		, open_vins_estimator{manager_params}
 		, imu_cam_buffer{nullptr}
 	{
-//		myfile.open ("/sdcard/Android/data/com.example.native_activity/pose.tum");
+		myfile.open ("/sdcard/Android/data/com.example.native_activity/pose.tum");
 
         // Disabling OpenCV threading is faster on x86 desktop but slower on
         // jetson. Keeping this here for manual disabling.
@@ -279,9 +275,9 @@ public:
 
 		// Feed the IMU measurement. There should always be IMU data in each call to feed_imu_cam
 		assert((datum->img0.has_value() && datum->img1.has_value()) || (!datum->img0.has_value() && !datum->img1.has_value()));
-//		open_vins_estimator.feed_measurement_imu(duration2double(datum->time.time_since_epoch()), datum->angular_v.cast<double>(), datum->linear_a.cast<double>());
+		open_vins_estimator.feed_measurement_imu(duration2double(datum->time.time_since_epoch()), datum->angular_v.cast<double>(), datum->linear_a.cast<double>());
 		LOGS("timestamp feed imu %f",duration2double(datum->time.time_since_epoch()));
-		LOGS("NO IMU");
+
 		// If there is not cam data this func call, break early
 		if (!datum->img0.has_value() && !datum->img1.has_value()) {
 			auto stop2 = std::chrono::high_resolution_clock::now();
@@ -308,13 +304,11 @@ public:
         auto start = chrono::high_resolution_clock::now();
 
         //open_vins_estimator.feed_measurement_monocular(duration2double(imu_cam_buffer->time.time_since_epoch()), img0, 0,);
-//        if(manager_params.state_options.num_cameras == 1)
-//            open_vins_estimator.feed_measurement_monocular(duration2double(imu_cam_buffer->time.time_since_epoch()), img0, 0);
-//        else
-//            open_vins_estimator.feed_measurement_stereo(duration2double(imu_cam_buffer->time.time_since_epoch()), img0, img1, 0, 1);
-    LOGS("NO OPEN VINS CAMERA INPUT FED");
-
-	LOGS("timestamp feed monocular %f", duration2double(imu_cam_buffer->time.time_since_epoch()));
+        if(manager_params.state_options.num_cameras == 1)
+            open_vins_estimator.feed_measurement_monocular(duration2double(imu_cam_buffer->time.time_since_epoch()), img0, 0);
+        else
+            open_vins_estimator.feed_measurement_stereo(duration2double(imu_cam_buffer->time.time_since_epoch()), img0, img1, 0, 1);
+		LOGS("timestamp feed monocular %f", duration2double(imu_cam_buffer->time.time_since_epoch()));
 		//        open_vins_estimator.feed_measurement_stereo(duration2double(imu_cam_buffer->time.time_since_epoch()), img0, img1, 0, 1);
 		// Get the pose returned from SLAM
 		auto stop = chrono::high_resolution_clock::now();
@@ -325,7 +319,7 @@ public:
 
 		Eigen::Vector4d quat = state->_imu->quat();
 		Eigen::Vector3d vel = state->_imu->vel();
-		Eigen::Vector3d pose = {0.0, 0.0, 0.0};//state->_imu->pos();
+		Eigen::Vector3d pose = state->_imu->pos();
 
 		Eigen::Vector3f swapped_pos = Eigen::Vector3f{float(pose(0)), float(pose(1)), float(pose(2))};
 		Eigen::Quaternionf swapped_rot = Eigen::Quaternionf{float(quat(3)), float(quat(0)), float(quat(1)), float(quat(2))};
@@ -339,8 +333,7 @@ public:
         assert(isfinite(swapped_pos[1]));
         assert(isfinite(swapped_pos[2]));
 
-//		if (open_vins_estimator.initialized())
-        {
+		if (open_vins_estimator.initialized()) {
 			LOGS("Slam2 initialized");
 			if (isUninitialized) {
 				isUninitialized = false;
