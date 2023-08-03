@@ -21,7 +21,7 @@ using namespace ov_msckf;
 
 // Comment in if using ZED instead of offline_imu_cam
 // TODO: Pull from config YAML file
-// #define ZED
+#define ZED
 
 VioManagerOptions create_params()
 {
@@ -206,6 +206,21 @@ public:
 		cv::metrics::setAccount(new std::string{"-1"});
 #endif
 
+		boost::filesystem::create_directories(cam0_data_dir);
+        // std::string cam0_file = (data_path  + "/cam0" / "data.csv").string();
+		std::string cam0_file = data_path + "/cam0/data.csv";
+        cam0_wt_file.open(cam0_file, std::ofstream::out);
+        cam0_wt_file << "#timestamp [ns],filename" << std::endl;
+
+        // create cam1 directory
+        boost::filesystem::create_directories(cam1_data_dir);
+        // std::string cam1_file = (data_path + / "/cam1" / "data.csv").string();
+		std::string cam1_file = data_path + "/cam1/data.csv";
+        cam1_wt_file.open(cam1_file, std::ofstream::out);
+        cam1_wt_file << "#timestamp [ns],filename" << std::endl;
+
+		imu_csv.open(boost::filesystem::current_path().string() + "/recorded_data/imu.csv");
+		slam_csv.open(boost::filesystem::current_path().string() + "/recorded_data/slam.csv");
 	}
 
 
@@ -225,6 +240,9 @@ public:
 
 		// Feed the IMU measurement. There should always be IMU data in each call to feed_imu_cam
 		open_vins_estimator.feed_measurement_imu(duration2double(datum->time.time_since_epoch()), datum->angular_v, datum->linear_a);
+		imu_csv << datum->time.time_since_epoch().count() << "," << std::setprecision(17) 
+				<< datum->angular_v.cast<double>()[0] << "," << datum->angular_v.cast<double>()[1] << "," << datum->angular_v.cast<double>()[2]<< ","
+				<< datum->linear_a.cast<double>()[0] << "," << datum->linear_a.cast<double>()[1] << "," << datum->linear_a.cast<double>()[2] << std::endl;
 
 		switchboard::ptr<const cam_type> cam;
 		// Camera data can only go downstream when there's at least one IMU sample whose timestamp is larger than the camera data's.
@@ -252,6 +270,13 @@ public:
 		cv::Mat img0{cam_buffer->img0};
 		cv::Mat img1{cam_buffer->img1};
 		open_vins_estimator.feed_measurement_stereo(duration2double(cam_buffer->time.time_since_epoch()), img0, img1, 0, 1);
+		// long timestamp = cam_buffer->time.time_since_epoch().count();
+		// cam0_wt_file << timestamp << "," << timestamp << ".png " << std::endl;
+		// std::string            cam0_img  = cam0_data_dir.string() + "/" + std::to_string(timestamp) + ".png";
+        // cv::imwrite(cam0_img, img0);
+		// cam1_wt_file << timestamp << "," << timestamp << ".png " << std::endl;
+		// std::string            cam1_img  = cam1_data_dir.string() + "/" + std::to_string(timestamp) + ".png";
+        // cv::imwrite(cam1_img, img1);
 
 		// Get the pose returned from SLAM
 		state = open_vins_estimator.get_state();
@@ -297,6 +322,14 @@ public:
 				vel,
 				swapped_rot2
 			));
+			slam_csv << cam_buffer->time.time_since_epoch().count() << ","
+				<< swapped_pos.x() << ","
+				<< swapped_pos.y() << ","
+				<< swapped_pos.z() << ","
+				<< swapped_rot.w() << ","
+				<< swapped_rot.x() << ","
+				<< swapped_rot.y() << ","
+				<< swapped_rot.z() << std::endl;
 		}
 		cam_buffer = nullptr;
 	}
@@ -315,6 +348,14 @@ private:
 
 	VioManagerOptions manager_params = create_params();
 	VioManager open_vins_estimator;
+
+	const std::string data_path = boost::filesystem::current_path().string() + "/recorded_data";
+	const boost::filesystem::path cam0_data_dir = boost::filesystem::current_path().string() + "/recorded_data/cam0/data";
+    const boost::filesystem::path cam1_data_dir = boost::filesystem::current_path().string() + "/recorded_data/cam1/data";
+	std::ofstream imu_csv;
+	std::ofstream cam0_wt_file;
+	std::ofstream cam1_wt_file;
+	std::ofstream slam_csv;
 };
 
 PLUGIN_MAIN(slam2)
