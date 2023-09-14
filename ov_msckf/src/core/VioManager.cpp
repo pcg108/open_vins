@@ -23,10 +23,6 @@
 
 #include "utils/parse_cmd.h"
 
-#ifdef ILLIXR_INTEGRATION
-#include "../common/cpu_timer.hpp"
-#endif /// ILLIXR_INTEGRATION
-
 using namespace ov_core;
 using namespace ov_type;
 using namespace ov_msckf;
@@ -186,8 +182,8 @@ void VioManager::feed_measurement_stereo(double timestamp, cv::Mat& img0, cv::Ma
         trackFEATS->feed_stereo(timestamp, img0, img1, cam_id0, cam_id1);
     } else {
 #ifdef ILLIXR_INTEGRATION
-        std::thread t_l = timed_thread("slam2 feed l", &TrackBase::feed_monocular, trackFEATS, boost::ref(timestamp), boost::ref(img0), boost::ref(cam_id0));
-        std::thread t_r = timed_thread("slam2 feed r", &TrackBase::feed_monocular, trackFEATS, boost::ref(timestamp), boost::ref(img1), boost::ref(cam_id1));
+        std::thread t_l = std::thread(&TrackBase::feed_monocular, trackFEATS, boost::ref(timestamp), boost::ref(img0), boost::ref(cam_id0));
+        std::thread t_r = std::thread(&TrackBase::feed_monocular, trackFEATS, boost::ref(timestamp), boost::ref(img1), boost::ref(cam_id1));
 #else /// ILLIXR_INTEGRATION
         boost::thread t_l = boost::thread(&TrackBase::feed_monocular, trackFEATS, boost::ref(timestamp), boost::ref(img0), boost::ref(cam_id0));
         boost::thread t_r = boost::thread(&TrackBase::feed_monocular, trackFEATS, boost::ref(timestamp), boost::ref(img1), boost::ref(cam_id1));

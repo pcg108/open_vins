@@ -20,10 +20,6 @@
  */
 #include "TrackDescriptor.h"
 
-#ifdef ILLIXR_INTEGRATION
-#include "../../../ov_msckf/src/common/cpu_timer.hpp"
-#endif /// ILLIXR_INTEGRATION
-
 using namespace ov_core;
 
 
@@ -188,9 +184,9 @@ void TrackDescriptor::feed_stereo(double timestamp, cv::Mat &img_leftin, cv::Mat
 
     // Lets match temporally
 #ifdef ILLIXR_INTEGRATION
-    std::thread t_ll = timed_thread("slam2 rob_match l", &TrackDescriptor::robust_match, this, boost::ref(pts_last[cam_id_left]), boost::ref(pts_left_new),
+    std::thread t_ll = std::thread(&TrackDescriptor::robust_match, this, boost::ref(pts_last[cam_id_left]), boost::ref(pts_left_new),
                                        boost::ref(desc_last[cam_id_left]), boost::ref(desc_left_new), cam_id_left, cam_id_left, boost::ref(matches_ll));
-    std::thread t_rr = timed_thread("slam2 rob_match r", &TrackDescriptor::robust_match, this, boost::ref(pts_last[cam_id_right]), boost::ref(pts_right_new),
+    std::thread t_rr = std::thread(&TrackDescriptor::robust_match, this, boost::ref(pts_last[cam_id_right]), boost::ref(pts_right_new),
                                        boost::ref(desc_last[cam_id_right]), boost::ref(desc_right_new), cam_id_right, cam_id_right, boost::ref(matches_rr));
 #else /// ILLIXR_INTEGRATION
     boost::thread t_ll = boost::thread(&TrackDescriptor::robust_match, this, boost::ref(pts_last[cam_id_left]), boost::ref(pts_left_new),
@@ -352,9 +348,9 @@ void TrackDescriptor::perform_detection_stereo(const cv::Mat &img0, const cv::Ma
     // Extract our features (use FAST with griding)
     std::vector<cv::KeyPoint> pts0_ext, pts1_ext;
 #ifdef ILLIXR_INTEGRATION
-    std::thread t_0 = timed_thread("slam2 grid l", &Grider_FAST::perform_griding, boost::cref(img0), boost::ref(pts0_ext),
+    std::thread t_0 = std::thread(&Grider_FAST::perform_griding, boost::cref(img0), boost::ref(pts0_ext),
                                       num_features, grid_x, grid_y, threshold, true);
-    std::thread t_1 = timed_thread("slam2 grid r", &Grider_FAST::perform_griding, boost::cref(img1), boost::ref(pts1_ext),
+    std::thread t_1 = std::thread(&Grider_FAST::perform_griding, boost::cref(img1), boost::ref(pts1_ext),
                                       num_features, grid_x, grid_y, threshold, true);
 #else /// ILLIXR_INTEGRATION
     boost::thread t_0 = boost::thread(&Grider_FAST::perform_griding, boost::cref(img0), boost::ref(pts0_ext),
@@ -372,8 +368,8 @@ void TrackDescriptor::perform_detection_stereo(const cv::Mat &img0, const cv::Ma
 
     // Use C++11 lamdas so we can pass all theses variables by reference
 #ifdef ILLIXR_INTEGRATION
-    std::thread t_desc0 = timed_thread("slam2 orb l", [&]{this->orb0->compute(img0, pts0_ext, desc0_ext);});
-    std::thread t_desc1 = timed_thread("slam2 orb r", [&]{this->orb1->compute(img1, pts1_ext, desc1_ext);});
+    std::thread t_desc0 = std::thread([&]{this->orb0->compute(img0, pts0_ext, desc0_ext);});
+    std::thread t_desc1 = std::thread([&]{this->orb1->compute(img1, pts1_ext, desc1_ext);});
 #else /// ILLIXR_INTEGRATION
     std::thread t_desc0 = std::thread([this,&img0,&pts0_ext,&desc0_ext]{this->orb0->compute(img0, pts0_ext, desc0_ext);});
     std::thread t_desc1 = std::thread([this,&img1,&pts1_ext,&desc1_ext]{this->orb1->compute(img1, pts1_ext, desc1_ext);});
