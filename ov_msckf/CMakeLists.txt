@@ -110,10 +110,11 @@ set_property(TARGET ov_msckf_lib PROPERTY CXX_STANDARD 17)
 ##################################################
 
 if (ILLIXR_INTEGRATION)
+    find_package(spdlog REQUIRED)
     set(PLUGIN_NAME plugin.openvins${ILLIXR_BUILD_SUFFIX})
     add_library(${PLUGIN_NAME} SHARED src/slam2.cpp)
     target_include_directories(${PLUGIN_NAME} PUBLIC ${ILLIXR_ROOT})
-    target_link_libraries(${PLUGIN_NAME} ov_msckf_lib ${thirdparty_libraries})
+    target_link_libraries(${PLUGIN_NAME} ov_msckf_lib ${thirdparty_libraries} spdlog::spdlog)
     set_property(TARGET ${PLUGIN_NAME} PROPERTY CXX_STANDARD 17)
     install(TARGETS ov_msckf_lib DESTINATION lib)
     install(TARGETS ${PLUGIN_NAME} DESTINATION lib)
