@@ -303,7 +303,7 @@ public:
 	
         uint64_t after = rdtsc();
         std::ofstream outputFile;
-        outputFile.open("/home/eecs/prashanthcganesh108/ILLIXR/build/cycle_counts/vio.txt", std::ios::app);
+        outputFile.open("/root/ILLIXR/build/cycle_counts/vio.txt", std::ios::app);
         outputFile << after - before << std::endl;
         outputFile.close();
 
