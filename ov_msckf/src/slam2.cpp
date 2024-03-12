@@ -211,9 +211,17 @@ public:
 		});
 	}
 
+    uint64_t rdtsc(){
+        unsigned int lo,hi;
+        __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
+        return ((uint64_t)hi << 32) | lo;
+    }
 
 	void feed_imu_cam(const switchboard::ptr<const imu_type>& datum, [[maybe_unused]]std::size_t iteration_no) {
-		// Ensures that slam doesnt start before valid IMU readings come in
+
+        uint64_t before = rdtsc();
+
+        // Ensures that slam doesnt start before valid IMU readings come in
 		if (datum == nullptr) {
 			return;
 		}
@@ -292,7 +300,14 @@ public:
 			));
 		}
 		cam_buffer = cam;
-	}
+	
+        uint64_t after = rdtsc();
+        std::ofstream outputFile;
+        outputFile.open("/home/eecs/prashanthcganesh108/ILLIXR/build/cycle_counts/vio.txt", std::ios::app);
+        outputFile << after - before << std::endl;
+        outputFile.close();
+
+    }
 
 	~slam2() override = default;
 
