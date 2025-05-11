@@ -245,7 +245,11 @@ public:
 
 		cv::Mat img0{cam_buffer->img0};
 		cv::Mat img1{cam_buffer->img1};
-		std::cout << "[open-vins] the time of this camera sample is: " << cam_buffer->time.time_since_epoch() << std::endl;
+
+		auto duration = cam_buffer->time.time_since_epoch().count();
+		auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(curation);
+
+		std::cout << "[open-vins] the time of this camera sample is: " << ms << std::endl;
 		open_vins_estimator.feed_measurement_stereo(duration2double(cam_buffer->time.time_since_epoch()), img0, img1, 0, 1);
 
 		// Get the pose returned from SLAM
