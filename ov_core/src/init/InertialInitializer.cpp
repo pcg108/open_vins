@@ -52,6 +52,7 @@ bool InertialInitializer::initialize_with_imu(double &time0, Eigen::Matrix<doubl
 
     // Return if we don't have any measurements
     if(imu_data.empty()) {
+        std::cout << "InertialInitializer::initialize_with_imu(): no measurements" << std::endl;
         return false;
     }
 
@@ -71,6 +72,7 @@ bool InertialInitializer::initialize_with_imu(double &time0, Eigen::Matrix<doubl
 
     // Return if both of these failed
     if(window_newest.empty() || window_secondnew.empty()) {
+        std::cout << "InertialInitializer::initialize_with_imu(): unable to select window of IMU readings, not enough readings" << window_newest.empty() << " " << window_secondnew.empty() << std::endl;
         //printf(YELLOW "InertialInitializer::initialize_with_imu(): unable to select window of IMU readings, not enough readings\n" RESET);
         return false;
     }
@@ -89,6 +91,7 @@ bool InertialInitializer::initialize_with_imu(double &time0, Eigen::Matrix<doubl
 
     // If it is below the threshold just return
     if(a_var < _imu_excite_threshold) {
+        std::cout << "InertialInitializer::initialize_with_imu(): no IMU excitation, below threshold: " << a_var << " " << _imu_excite_threshold <<  std::endl;
         #ifndef NDEBUG
             printf(YELLOW "InertialInitializer::initialize_with_imu(): no IMU excitation, below threshold %.4f < %.4f\n" RESET,a_var,_imu_excite_threshold);
         #endif
