@@ -62,6 +62,7 @@ bool InertialInitializer::initialize_with_imu(double &time0, Eigen::Matrix<doubl
     // First lets collect a window of IMU readings from the newest measurement to the oldest
     std::vector<IMUDATA> window_newest, window_secondnew;
     for(IMUDATA data : imu_data) {
+        std::cout << "  [initializer-debug] timestamp: " << data.timestamp << " 0w: " << newesttime-0*_window_length << " 1w: " << newesttime-1*_window_length << " 2w: " << newesttime-2*_window_length << std::endl;
         if(data.timestamp > newesttime-1*_window_length && data.timestamp <= newesttime-0*_window_length) {
             window_newest.push_back(data);
         }
