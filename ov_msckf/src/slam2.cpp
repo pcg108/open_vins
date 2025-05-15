@@ -310,7 +310,7 @@ private:
 	State *state{};
 
 	cam_type* cam_buffer;
-	std::shared_ptr<cam_type>  _m_cam;
+	std::shared_ptr<offline_cam>  _m_cam;
 
 	VioManagerOptions manager_params = create_params();
 	VioManager open_vins_estimator;
