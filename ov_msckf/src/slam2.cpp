@@ -227,9 +227,8 @@ public:
 			return;
 		}
 
-		cam_type cam = *read_cam;
 		if (!cam_buffer) {
-			cam_buffer = cam;
+			cam_buffer = read_cam;
 			return;
 		}
 
@@ -308,8 +307,8 @@ private:
 	switchboard::writer<imu_integrator_input> _m_imu_integrator_input;
 	State *state{};
 
-	cam_type cam_buffer;
-	switchboard::buffered_reader<cam_type> _m_cam;
+	cam_type* cam_buffer;
+	std::shared_ptr<cam_type>  _m_cam;
 
 	VioManagerOptions manager_params = create_params();
 	VioManager open_vins_estimator;
