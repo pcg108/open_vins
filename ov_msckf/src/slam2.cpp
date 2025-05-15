@@ -16,6 +16,8 @@
 #include "illixr/phonebook.hpp"
 #include "illixr/relative_clock.hpp"
 
+#include "illixr/offline_cam.hpp"
+
 using namespace ILLIXR;
 using namespace ov_msckf;
 
@@ -221,14 +223,14 @@ public:
 		// Feed the IMU measurement. There should always be IMU data in each call to feed_imu_cam
 		open_vins_estimator.feed_measurement_imu(duration2double(datum->time.time_since_epoch()), datum->angular_v, datum->linear_a);
 
-		auto read_cam = _m_cam->get_cam_reading(datum->imu_real_time);
+		auto cam = _m_cam->get_cam_reading(datum->imu_real_time);
 		// If there is not cam data this func call, break early
-		if (!read_cam) {
+		if (!cam) {
 			return;
 		}
 
 		if (!cam_buffer) {
-			cam_buffer = read_cam;
+			cam_buffer = cam;
 			return;
 		}
 
