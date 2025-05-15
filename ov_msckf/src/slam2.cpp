@@ -229,8 +229,9 @@ public:
 			return;
 		}
 
-		if (!cam_buffer) {
+		if (!cam_buffer_set) {
 			cam_buffer = *cam;
+			cam_buffer_set = true;
 			return;
 		}
 
@@ -309,6 +310,7 @@ private:
 	switchboard::writer<imu_integrator_input> _m_imu_integrator_input;
 	State *state{};
 
+	bool cam_buffer_set = false;
 	cam_type cam_buffer;
 	std::shared_ptr<offline_cam>  _m_cam;
 
