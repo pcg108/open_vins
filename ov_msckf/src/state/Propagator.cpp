@@ -190,6 +190,7 @@ void Propagator::fast_state_propagate(State *state, double timestamp, Eigen::Mat
 
 std::vector<Propagator::IMUDATA> Propagator::select_imu_readings(const std::vector<IMUDATA>& imu_data, double time0, double time1) {
 
+
     // Our vector imu readings
     std::vector<Propagator::IMUDATA> prop_data;
 
