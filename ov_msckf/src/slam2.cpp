@@ -250,7 +250,7 @@ public:
 		auto duration = cam_buffer->time.time_since_epoch();
 		auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
 
-		std::cout << "[open-vins] the time of this camera sample is: " << ms.count() << std::endl;
+		// std::cout << "[open-vins] the time of this camera sample is: " << ms.count() << std::endl;
 		open_vins_estimator.feed_measurement_stereo(duration2double(cam_buffer->time.time_since_epoch()), img0, img1, 0, 1);
 
 		// Get the pose returned from SLAM

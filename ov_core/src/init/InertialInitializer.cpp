@@ -62,7 +62,7 @@ bool InertialInitializer::initialize_with_imu(double &time0, Eigen::Matrix<doubl
     // First lets collect a window of IMU readings from the newest measurement to the oldest
     std::vector<IMUDATA> window_newest, window_secondnew;
     for(IMUDATA data : imu_data) {
-        std::cout << "  [initializer-debug] timestamp: " << data.timestamp << " 0w: " << newesttime-0*_window_length << " 1w: " << newesttime-1*_window_length << " 2w: " << newesttime-2*_window_length << std::endl;
+        // std::cout << "  [initializer-debug] timestamp: " << data.timestamp << " 0w: " << newesttime-0*_window_length << " 1w: " << newesttime-1*_window_length << " 2w: " << newesttime-2*_window_length << std::endl;
         if(data.timestamp > newesttime-1*_window_length && data.timestamp <= newesttime-0*_window_length) {
             window_newest.push_back(data);
         }
@@ -92,7 +92,6 @@ bool InertialInitializer::initialize_with_imu(double &time0, Eigen::Matrix<doubl
 
     // If it is below the threshold just return
     if(a_var < _imu_excite_threshold) {
-        std::cout << "InertialInitializer::initialize_with_imu(): no IMU excitation, below threshold: " << a_var << " " << _imu_excite_threshold <<  std::endl;
         #ifndef NDEBUG
             printf(YELLOW "InertialInitializer::initialize_with_imu(): no IMU excitation, below threshold %.4f < %.4f\n" RESET,a_var,_imu_excite_threshold);
         #endif
