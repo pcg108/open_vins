@@ -230,7 +230,7 @@ public:
 		}
 
 		if (!cam_buffer) {
-			cam_buffer = cam;
+			cam_buffer = *cam;
 			return;
 		}
 
@@ -244,14 +244,14 @@ public:
 #warning "No OpenCV metrics available. Please recompile OpenCV from git clone --branch 3.4.6-instrumented https://github.com/ILLIXR/opencv/. (see install_deps.sh)"
 #endif
 
-		cv::Mat img0{cam_buffer->img0};
-		cv::Mat img1{cam_buffer->img1};
+		cv::Mat img0{cam_buffer.img0};
+		cv::Mat img1{cam_buffer.img1};
 
-		auto duration = cam_buffer->time.time_since_epoch();
+		auto duration = cam_buffer.time.time_since_epoch();
 		auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
 
 		std::cout << "[open-vins] the time of this camera sample is: " << ms.count() << std::endl;
-		open_vins_estimator.feed_measurement_stereo(duration2double(cam_buffer->time.time_since_epoch()), img0, img1, 0, 1);
+		open_vins_estimator.feed_measurement_stereo(duration2double(cam_buffer.time.time_since_epoch()), img0, img1, 0, 1);
 
 		// Get the pose returned from SLAM
 		state = open_vins_estimator.get_state();
@@ -273,13 +273,13 @@ public:
 
 		if (open_vins_estimator.initialized()) {
 			_m_pose.put(_m_pose.allocate(
-				cam_buffer->time,
+				cam_buffer.time,
 				swapped_pos,
 				swapped_rot
 			));
 
 			_m_imu_integrator_input.put(_m_imu_integrator_input.allocate(
-				cam_buffer->time,
+				cam_buffer.time,
 				from_seconds(state->_calib_dt_CAMtoIMU->value()(0)),
 				imu_params{
 					.gyro_noise = 0.00016968,
@@ -297,7 +297,7 @@ public:
 				swapped_rot2
 			));
 		}
-		cam_buffer = cam;
+		cam_buffer = *cam;
 	}
 
 	~slam2() override = default;
@@ -309,7 +309,7 @@ private:
 	switchboard::writer<imu_integrator_input> _m_imu_integrator_input;
 	State *state{};
 
-	cam_type* cam_buffer;
+	cam_type cam_buffer;
 	std::shared_ptr<offline_cam>  _m_cam;
 
 	VioManagerOptions manager_params = create_params();
