@@ -221,8 +221,8 @@ public:
 		// Feed the IMU measurement. There should always be IMU data in each call to feed_imu_cam
 		open_vins_estimator.feed_measurement_imu(duration2double(datum->time.time_since_epoch()), datum->angular_v, datum->linear_a);
 
-		
-		cam_type cam = _m_cam->get_cam_reading(datum->imu_real_time)
+		auto read_cam = _m_cam->get_cam_reading(datum->imu_real_time);
+		cam_type cam = *read_cam;
 		// If there is not cam data this func call, break early
 		if (!cam) {
 			return;
