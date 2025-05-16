@@ -267,7 +267,11 @@ namespace ov_msckf {
 
         // Timing statistic file and variables
         std::ofstream of_statistics;
+#ifdef CYCLE_COUNT_BENCH
+        uint64_t rT1, rT2, rT3, rT4, rT5, rT6, rT7;
+#else
         boost::posix_time::ptime rT1, rT2, rT3, rT4, rT5, rT6, rT7;
+#endif
         unsigned total_images;
         double total_tracking_time;
         double total_filter_time;

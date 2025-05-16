@@ -23,6 +23,19 @@
 
 #include "utils/parse_cmd.h"
 
+#ifdef CYCLE_COUNT_BENCH
+    static inline uint64_t read_cycles() {
+        uint64_t cycles;
+        asm volatile("rdcycle %0" : "=r" (cycles));
+        return cycles;
+    }
+    #define GET_TIMING read_cycles()
+    #define GET_TIME_DIFF(tf, ti) (tf-ti)
+#else
+    #define GET_TIMING boost::posix_time::microsec_clock::local_time()
+    #define GET_TIME_DIFF(tf, ti) (tf-ti).total_microseconds() * 1e-3
+#endif
+
 using namespace ov_core;
 using namespace ov_type;
 using namespace ov_msckf;
@@ -145,7 +158,7 @@ void VioManager::feed_measurement_imu(double timestamp, Eigen::Vector3d wm, Eige
 void VioManager::feed_measurement_monocular(double timestamp, cv::Mat& img0, size_t cam_id) {
 
     // Start timing
-    rT1 =  boost::posix_time::microsec_clock::local_time();
+    rT1 =  GET_TIMING;
 
     // Feed our trackers
     trackFEATS->feed_monocular(timestamp, img0, cam_id);
@@ -154,7 +167,7 @@ void VioManager::feed_measurement_monocular(double timestamp, cv::Mat& img0, siz
     if(trackARUCO != nullptr) {
         trackARUCO->feed_monocular(timestamp, img0, cam_id);
     }
-    rT2 =  boost::posix_time::microsec_clock::local_time();
+    rT2 =  GET_TIMING;
 
     // If we do not have VIO initialization, then try to initialize
     // TODO: Or if we are trying to reset the system, then do that here!
@@ -172,7 +185,7 @@ void VioManager::feed_measurement_monocular(double timestamp, cv::Mat& img0, siz
 void VioManager::feed_measurement_stereo(double timestamp, cv::Mat& img0, cv::Mat& img1, size_t cam_id0, size_t cam_id1) {
 
     // Start timing
-    rT1 =  boost::posix_time::microsec_clock::local_time();
+    rT1 =  GET_TIMING;
 
     // Assert we have good ids
     assert(cam_id0!=cam_id1);
@@ -198,7 +211,7 @@ void VioManager::feed_measurement_stereo(double timestamp, cv::Mat& img0, cv::Ma
     if(trackARUCO != nullptr) {
         trackARUCO->feed_stereo(timestamp, img0, img1, cam_id0, cam_id1);
     }
-    rT2 =  boost::posix_time::microsec_clock::local_time();
+    rT2 =  GET_TIMING;
 
     // If we do not have VIO initialization, then try to initialize
     // TODO: Or if we are trying to reset the system, then do that here!
@@ -217,7 +230,7 @@ void VioManager::feed_measurement_stereo(double timestamp, cv::Mat& img0, cv::Ma
 void VioManager::feed_measurement_simulation(double timestamp, const std::vector<int> &camids, const std::vector<std::vector<std::pair<size_t,Eigen::VectorXf>>> &feats) {
 
     // Start timing
-    rT1 =  boost::posix_time::microsec_clock::local_time();
+    rT1 =  GET_TIMING;
 
     // Check if we actually have a simulated tracker
     TrackSIM *trackSIM = dynamic_cast<TrackSIM*>(trackFEATS);
@@ -234,7 +247,7 @@ void VioManager::feed_measurement_simulation(double timestamp, const std::vector
 
     // Feed our simulation tracker
     trackSIM->feed_measurement_simulation(timestamp, camids, feats);
-    rT2 =  boost::posix_time::microsec_clock::local_time();
+    rT2 =  GET_TIMING;
 
     // If we do not have VIO initialization, then return an error
     if(!is_initialized_vio) {
@@ -316,7 +329,7 @@ void VioManager::do_feature_propagate_update(double timestamp) {
     // Propagate the state forward to the current update time
     // Also augment it with a new clone!
     propagator->propagate_and_clone(state, timestamp);
-    rT3 =  boost::posix_time::microsec_clock::local_time();
+    rT3 =  GET_TIMING;
 
     // If we have not reached max clones, we should just return...
     // This isn't super ideal, but it keeps the logic after this easier...
@@ -452,7 +465,7 @@ void VioManager::do_feature_propagate_update(double timestamp) {
     if((int)featsup_MSCKF.size() > state->_options.max_msckf_in_update)
         featsup_MSCKF.erase(featsup_MSCKF.begin(), featsup_MSCKF.end()-state->_options.max_msckf_in_update);
     updaterMSCKF->update(state, featsup_MSCKF);
-    rT4 =  boost::posix_time::microsec_clock::local_time();
+    rT4 =  GET_TIMING;
 
     // Perform SLAM delay init and update
     // NOTE: that we provide the option here to do a *sequential* update
@@ -468,9 +481,9 @@ void VioManager::do_feature_propagate_update(double timestamp) {
         feats_slam_UPDATE_TEMP.insert(feats_slam_UPDATE_TEMP.end(), featsup_TEMP.begin(), featsup_TEMP.end());
     }
     feats_slam_UPDATE = feats_slam_UPDATE_TEMP;
-    rT5 =  boost::posix_time::microsec_clock::local_time();
+    rT5 =  GET_TIMING;
     updaterSLAM->delayed_init(state, feats_slam_DELAYED);
-    rT6 =  boost::posix_time::microsec_clock::local_time();
+    rT6 =  GET_TIMING;
 
 
     //===================================================================================
@@ -528,7 +541,7 @@ void VioManager::do_feature_propagate_update(double timestamp) {
             trackARUCO->set_calibration(cameranew_calib, cameranew_fisheye, true);
         }
     }
-    rT7 =  boost::posix_time::microsec_clock::local_time();
+    rT7 =  GET_TIMING;
 
 
     //===================================================================================
@@ -536,13 +549,13 @@ void VioManager::do_feature_propagate_update(double timestamp) {
     //===================================================================================
 
     // Get timing statitics information
-    double time_track = (rT2-rT1).total_microseconds() * 1e-3;
-    double time_prop = (rT3-rT2).total_microseconds() * 1e-3;
-    double time_msckf = (rT4-rT3).total_microseconds() * 1e-3;
-    double time_slam_update = (rT5-rT4).total_microseconds() * 1e-3;
-    double time_slam_delay = (rT6-rT5).total_microseconds() * 1e-3;
-    double time_marg = (rT7-rT6).total_microseconds() * 1e-3;
-    double time_total = (rT7-rT1).total_microseconds() * 1e-3;
+    double time_track       = GET_TIME_DIFF(rT2, rT1);
+    double time_prop        = GET_TIME_DIFF(rT3, rT2);
+    double time_msckf       = GET_TIME_DIFF(rT4, rT3);
+    double time_slam_update = GET_TIME_DIFF(rT5, rT4);
+    double time_slam_delay  = GET_TIME_DIFF(rT6, rT5);
+    double time_marg        = GET_TIME_DIFF(rT7, rT6);
+    double time_total       = GET_TIME_DIFF(rT7, rT1);
 
 #ifndef NDEBUG
     // Timing information
@@ -584,7 +597,9 @@ void VioManager::do_feature_propagate_update(double timestamp) {
         if(state->_options.max_slam_features > 0) {
             of_statistics << time_slam_update << "," << time_slam_delay << ",";
         }
-        of_statistics << time_marg << "," << time_total << std::endl;
+        of_statistics << time_marg << "," << time_total << ",";
+        of_statistics << state->_imu->quat()(0)<<","<<state->_imu->quat()(1)<<","<<state->_imu->quat()(2)<<","<<state->_imu->quat()(3)<<","; 
+        of_statistics << state->_imu->pos()(0)<<","<<state->_imu->pos()(1)<<","<<state->_imu->pos()(2)<<","<<distance<< std::endl;
         of_statistics.flush();
     }
 

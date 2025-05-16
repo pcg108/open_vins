@@ -11,6 +11,8 @@ project(ov_msckf)
 # Find catkin (the ROS build system)
 #find_package(catkin QUIET COMPONENTS roscpp rosbag tf std_msgs geometry_msgs sensor_msgs nav_msgs visualization_msgs cv_bridge ov_core)
 
+add_definitions(-DCYCLE_COUNT_BENCH)
+
 find_package(OpenBLAS REQUIRED)
 add_definitions(-DEIGEN_USE_BLAS=1)
 
