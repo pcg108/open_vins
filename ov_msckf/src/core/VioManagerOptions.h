@@ -70,7 +70,7 @@ namespace ov_msckf {
         double init_imu_thresh = 1.0;
 
         /// If we should record the timing performance to file
-        bool record_timing_information = false;
+        bool record_timing_information = true;
 
         /// The path to the file we will record the timing information into
         std::string record_timing_filepath = "ov_msckf_timing.txt";
