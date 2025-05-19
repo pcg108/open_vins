@@ -601,6 +601,18 @@ void VioManager::do_feature_propagate_update(double timestamp) {
         of_statistics << state->_imu->quat()(0)<<","<<state->_imu->quat()(1)<<","<<state->_imu->quat()(2)<<","<<state->_imu->quat()(3)<<","; 
         of_statistics << state->_imu->pos()(0)<<","<<state->_imu->pos()(1)<<","<<state->_imu->pos()(2)<<","<<distance<< std::endl;
         of_statistics.flush();
+
+        std::cout << std::fixed << std::setprecision(15)
+                      << timestamp_inI << ","
+                      << std::fixed << std::setprecision(5)
+                      << time_track << "," << time_prop << "," << time_msckf << ",";
+        if(state->_options.max_slam_features > 0) {
+            std::cout << time_slam_update << "," << time_slam_delay << ",";
+        }
+        std::cout << time_marg << "," << time_total << ",";
+        std::cout << state->_imu->quat()(0)<<","<<state->_imu->quat()(1)<<","<<state->_imu->quat()(2)<<","<<state->_imu->quat()(3)<<","; 
+        std::cout << state->_imu->pos()(0)<<","<<state->_imu->pos()(1)<<","<<state->_imu->pos()(2)<<","<<distance<< std::endl;
+        
     }
 
 
