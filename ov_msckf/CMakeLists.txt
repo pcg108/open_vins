@@ -25,11 +25,12 @@ set(BUILD_BENCHMARKS OFF)
 set(TARGET "RISCV64_ZVL256B")
 # add_definitions(-DGEMMINI_BACKEND)
 
+find_package(OpenBLAS REQUIRED)
 add_definitions(-DEIGEN_USE_BLAS=1)
-add_subdirectory(${CMAKE_SOURCE_DIR}/ov_msckf/external/OpenBLAS)
-add_subdirectory(${CMAKE_SOURCE_DIR}/ov_msckf/external/eigen)
+# add_subdirectory(${CMAKE_SOURCE_DIR}/ov_msckf/external/OpenBLAS)
+# add_subdirectory(${CMAKE_SOURCE_DIR}/ov_msckf/external/eigen)
 
-
+find_package(Eigen3 REQUIRED)
 # Include libraries
 find_package(OpenCV REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system filesystem thread date_time)
@@ -60,10 +61,9 @@ if (ILLIXR_INTEGRATION)
     # Enable debug flags (use if you want to debug in gdb)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -Wall -Wuninitialized")
     include_directories(${ILLIXR_ROOT}
-            # ${CMAKE_SOURCE_DIR}/ov_msckf/external/eigen
             src
             ${OpenCV_INCLUDE_DIR}
-            # ${EIGEN3_INCLUDE_DIR}
+            ${EIGEN3_INCLUDE_DIR}
             ${Boost_INCLUDE_DIRS}
             ${catkin_INCLUDE_DIRS}
             )
@@ -74,10 +74,9 @@ else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -Wall -Wuninitialized")
     # Include our header files
     include_directories(
-            # ${CMAKE_SOURCE_DIR}/ov_msckf/external/eigen
             src
             ${OpenCV_INCLUDE_DIR}
-            # ${EIGEN3_INCLUDE_DIR}
+            ${EIGEN3_INCLUDE_DIR}
             ${Boost_INCLUDE_DIRS}
             ${catkin_INCLUDE_DIRS}
     )
@@ -136,12 +135,12 @@ if (ILLIXR_INTEGRATION)
     set(PLUGIN_NAME plugin.openvins${ILLIXR_BUILD_SUFFIX})
     add_library(${PLUGIN_NAME} SHARED src/slam2.cpp)
     target_include_directories(${PLUGIN_NAME} PUBLIC ${ILLIXR_ROOT})
-    target_link_libraries(${PLUGIN_NAME} ov_msckf_lib ${thirdparty_libraries} spdlog::spdlog openblas_static Eigen3::Eigen)
+    target_link_libraries(${PLUGIN_NAME} ov_msckf_lib ${thirdparty_libraries} spdlog::spdlog OpenBLAS::OpenBLAS)
     set_property(TARGET ${PLUGIN_NAME} PROPERTY CXX_STANDARD 17)
     install(TARGETS ov_msckf_lib DESTINATION lib)
     install(TARGETS ${PLUGIN_NAME} DESTINATION lib)
 else()
     add_executable(run_illixr_msckf src/run_illixr_msckf.cpp)
-    target_link_libraries(run_illixr_msckf ov_msckf_lib ${thirdparty_libraries} openblas_static Eigen3::Eigen)
+    target_link_libraries(run_illixr_msckf ov_msckf_lib ${thirdparty_libraries} openblas_static OpenBLAS::OpenBLAS)
     set_property(TARGET run_illixr_msckf PROPERTY CXX_STANDARD 17)
 endif()
