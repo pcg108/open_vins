@@ -1,0 +1,6 @@
+[submodule "ov_msckf/external/OpenBLAS"]
+	path = ov_msckf/external/OpenBLAS
+	url = https://github.com/pcg108/OpenBLAS.git
+[submodule "ov_msckf/external/eigen"]
+	path = ov_msckf/external/eigen
+	url = https://gitlab.com/libeigen/eigen.git
