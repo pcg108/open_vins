@@ -26,8 +26,8 @@ set(TARGET "RISCV64_ZVL256B")
 # add_definitions(-DGEMMINI_BACKEND)
 
 add_definitions(-DEIGEN_USE_BLAS=1)
-add_subdirectory(${CMAKE_SOURCE_DIR}/external/OpenBLAS)
-add_subdirectory(${CMAKE_SOURCE_DIR}/external/eigen)
+add_subdirectory(${CMAKE_SOURCE_DIR}/ov_msckf/external/OpenBLAS)
+add_subdirectory(${CMAKE_SOURCE_DIR}/ov_msckf/external/eigen)
 
 # Include libraries
 find_package(OpenCV REQUIRED)
