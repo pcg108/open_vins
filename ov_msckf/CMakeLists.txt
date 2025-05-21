@@ -118,10 +118,11 @@ if (catkin_FOUND)
     )
 endif()
 
-add_library(Eigen3::Eigen INTERFACE)
-target_include_directories(Eigen3::Eigen INTERFACE
+add_library(ov_msckf_eigen INTERFACE)
+target_include_directories(ov_msckf_eigen INTERFACE
   ${CMAKE_SOURCE_DIR}/ov_msckf/external/eigen
 )
+add_library(Eigen3::Eigen ALIAS ov_msckf_eigen)
 
 add_library(ov_msckf_lib SHARED ${library_source_files})
 target_link_libraries(ov_msckf_lib ${thirdparty_libraries} Eigen3::Eigen)
