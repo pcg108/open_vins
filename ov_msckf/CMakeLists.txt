@@ -13,9 +13,9 @@ project(ov_msckf)
 
 add_definitions(-DCYCLE_COUNT_BENCH)
 
-set(RVV_ARCH_FLAGS "-march=rv64gcv -mabi=lp64d")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${RVV_ARCH_FLAGS}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RVV_ARCH_FLAGS}")
+# set(RVV_ARCH_FLAGS "-march=rv64gcv -mabi=lp64d")
+# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${RVV_ARCH_FLAGS}")
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RVV_ARCH_FLAGS}")
 
 
 find_package(OpenBLAS REQUIRED)
@@ -132,6 +132,6 @@ if (ILLIXR_INTEGRATION)
     install(TARGETS ${PLUGIN_NAME} DESTINATION lib)
 else()
     add_executable(run_illixr_msckf src/run_illixr_msckf.cpp)
-    target_link_libraries(run_illixr_msckf ov_msckf_lib ${thirdparty_libraries} openblas_static OpenBLAS::OpenBLAS)
+    target_link_libraries(run_illixr_msckf ov_msckf_lib ${thirdparty_libraries} OpenBLAS::OpenBLAS)
     set_property(TARGET run_illixr_msckf PROPERTY CXX_STANDARD 17)
 endif()
