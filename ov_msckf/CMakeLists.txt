@@ -29,6 +29,7 @@ add_definitions(-DEIGEN_USE_BLAS=1)
 add_subdirectory(${CMAKE_SOURCE_DIR}/ov_msckf/external/OpenBLAS)
 add_subdirectory(${CMAKE_SOURCE_DIR}/ov_msckf/external/eigen)
 
+
 # Include libraries
 find_package(OpenCV REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system filesystem thread date_time)
@@ -116,8 +117,14 @@ if (catkin_FOUND)
         src/core/RosVisualizer.cpp
     )
 endif()
+
+add_library(Eigen3::Eigen INTERFACE)
+target_include_directories(Eigen3::Eigen INTERFACE
+  ${CMAKE_SOURCE_DIR}/ov_msckf/external/eigen
+)
+
 add_library(ov_msckf_lib SHARED ${library_source_files})
-target_link_libraries(ov_msckf_lib ${thirdparty_libraries})
+target_link_libraries(ov_msckf_lib ${thirdparty_libraries} Eigen3::Eigen)
 target_include_directories(ov_msckf_lib PUBLIC src)
 set_property(TARGET ov_msckf_lib PROPERTY CXX_STANDARD 17)
 
@@ -131,14 +138,12 @@ if (ILLIXR_INTEGRATION)
     set(PLUGIN_NAME plugin.openvins${ILLIXR_BUILD_SUFFIX})
     add_library(${PLUGIN_NAME} SHARED src/slam2.cpp)
     target_include_directories(${PLUGIN_NAME} PUBLIC ${ILLIXR_ROOT})
-    target_include_directories(${PLUGIN_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/ov_msckf/external/eigen)
     target_link_libraries(${PLUGIN_NAME} ov_msckf_lib ${thirdparty_libraries} spdlog::spdlog openblas_static Eigen3::Eigen)
     set_property(TARGET ${PLUGIN_NAME} PROPERTY CXX_STANDARD 17)
     install(TARGETS ov_msckf_lib DESTINATION lib)
     install(TARGETS ${PLUGIN_NAME} DESTINATION lib)
 else()
     add_executable(run_illixr_msckf src/run_illixr_msckf.cpp)
-    target_include_directories(${PLUGIN_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/ov_msckf/external/eigen)
     target_link_libraries(run_illixr_msckf ov_msckf_lib ${thirdparty_libraries} openblas_static Eigen3::Eigen)
     set_property(TARGET run_illixr_msckf PROPERTY CXX_STANDARD 17)
 endif()
