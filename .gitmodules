@@ -1,6 +1,0 @@
-[submodule "external/eigen"]
-	path = external/eigen
-	url = https://gitlab.com/libeigen/eigen.git
-[submodule "external/OpenBLAS"]
-	path = external/OpenBLAS
-	url = https://github.com/pcg108/OpenBLAS.git
