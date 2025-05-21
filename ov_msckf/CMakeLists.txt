@@ -60,6 +60,7 @@ if (ILLIXR_INTEGRATION)
     # Enable debug flags (use if you want to debug in gdb)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -Wall -Wuninitialized")
     include_directories(${ILLIXR_ROOT}
+            ${CMAKE_SOURCE_DIR}/ov_msckf/external/eigen
             src
             ${OpenCV_INCLUDE_DIR}
             # ${EIGEN3_INCLUDE_DIR}
@@ -73,6 +74,7 @@ else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -Wall -Wuninitialized")
     # Include our header files
     include_directories(
+            ${CMAKE_SOURCE_DIR}/ov_msckf/external/eigen
             src
             ${OpenCV_INCLUDE_DIR}
             # ${EIGEN3_INCLUDE_DIR}
@@ -118,14 +120,9 @@ if (catkin_FOUND)
     )
 endif()
 
-add_library(ov_msckf_eigen INTERFACE)
-target_include_directories(ov_msckf_eigen INTERFACE
-  ${CMAKE_SOURCE_DIR}/ov_msckf/external/eigen
-)
-add_library(Eigen3::Eigen ALIAS ov_msckf_eigen)
 
 add_library(ov_msckf_lib SHARED ${library_source_files})
-target_link_libraries(ov_msckf_lib ${thirdparty_libraries} Eigen3::Eigen)
+target_link_libraries(ov_msckf_lib ${thirdparty_libraries})
 target_include_directories(ov_msckf_lib PUBLIC src)
 set_property(TARGET ov_msckf_lib PROPERTY CXX_STANDARD 17)
 
