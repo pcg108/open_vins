@@ -17,18 +17,9 @@ set(RVV_ARCH_FLAGS "-march=rv64gcv -mabi=lp64d")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${RVV_ARCH_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${RVV_ARCH_FLAGS}")
 
-set(NOFORTRAN "1")
-set(DYNAMIC_ARCH OFF)
-set(BUILD_WITHOUT_LAPACK ON)
-set(BUILD_TESTING OFF)
-set(BUILD_BENCHMARKS OFF)
-set(TARGET "RISCV64_ZVL256B")
-# add_definitions(-DGEMMINI_BACKEND)
 
 find_package(OpenBLAS REQUIRED)
 add_definitions(-DEIGEN_USE_BLAS=1)
-# add_subdirectory(${CMAKE_SOURCE_DIR}/ov_msckf/external/OpenBLAS)
-# add_subdirectory(${CMAKE_SOURCE_DIR}/ov_msckf/external/eigen)
 
 find_package(Eigen3 REQUIRED)
 # Include libraries
