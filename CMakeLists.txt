@@ -15,11 +15,11 @@ add_definitions(-DGEMMINI_BACKEND)
 add_definitions(-DEIGEN_USE_BLAS=1)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/external/OpenBLAS)
-add_subdirectory(${CMAKE_SOURCE_DIR}/external/eigen)
+# add_subdirectory(${CMAKE_SOURCE_DIR}/external/eigen)
 
 list(APPEND custom_eigen_blas
     openblas_static
-    Eigen3::Eigen
+    # Eigen3::Eigen
 )
 
 add_subdirectory(ov_core)

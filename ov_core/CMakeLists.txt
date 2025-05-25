@@ -45,8 +45,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -Wall -Wuninitialized")
 include_directories(
         src
         ${OpenCV_INCLUDE_DIR}
-        # ${EIGEN3_INCLUDE_DIRS}
-        ${CMAKE_SOURCE_DIR}/external/eigen
+        ${EIGEN3_INCLUDE_DIRS}
+        # ${CMAKE_SOURCE_DIR}/external/eigen
         ${Boost_INCLUDE_DIRS}
         ${catkin_INCLUDE_DIRS}
 )
