@@ -26,6 +26,7 @@
 #include <iostream>
 #include <unordered_map>
 #include <Eigen/Eigen>
+#include <cassert>
 
 namespace ov_core {
 
