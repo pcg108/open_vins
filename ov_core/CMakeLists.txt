@@ -9,7 +9,8 @@ project(ov_core)
 #find_package(catkin QUIET COMPONENTS roscpp rosbag tf std_msgs geometry_msgs sensor_msgs nav_msgs visualization_msgs cv_bridge)
 
 # Include libraries
-# find_package(Eigen3 REQUIRED)
+add_definitions(-DEIGEN_USE_BLAS=1)
+find_package(Eigen3 REQUIRED)
 
 find_package(OpenCV REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system filesystem thread date_time)

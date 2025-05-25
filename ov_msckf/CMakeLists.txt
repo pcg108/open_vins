@@ -19,8 +19,8 @@ add_definitions(-DCYCLE_COUNT_BENCH)
 
 
 # find_package(OpenBLAS REQUIRED)
-# add_definitions(-DEIGEN_USE_BLAS=1)
-# find_package(Eigen3 REQUIRED)
+add_definitions(-DEIGEN_USE_BLAS=1)
+find_package(Eigen3 REQUIRED)
 
 # Include libraries
 find_package(OpenCV REQUIRED)
