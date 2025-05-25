@@ -114,7 +114,7 @@ endif()
 
 
 add_library(ov_msckf_lib SHARED ${library_source_files})
-target_link_libraries(ov_msckf_lib ${thirdparty_libraries} Eigen3::Eigen)
+target_link_libraries(ov_msckf_lib ${thirdparty_libraries} ${custom_eigen_blas})
 target_include_directories(ov_msckf_lib PUBLIC src)
 set_property(TARGET ov_msckf_lib PROPERTY CXX_STANDARD 17)
 
