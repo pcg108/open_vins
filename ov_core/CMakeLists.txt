@@ -74,7 +74,7 @@ add_library(ov_core_lib SHARED
         src/feat/Feature.cpp
         src/feat/FeatureInitializer.cpp
 )
-target_link_libraries(ov_core_lib ${thirdparty_libraries} custom_eigen_blas)
+target_link_libraries(ov_core_lib ${thirdparty_libraries} ${custom_eigen_blas})
 target_include_directories(ov_core_lib PUBLIC src)
 set_property(TARGET ov_core_lib PROPERTY CXX_STANDARD 17)
 
