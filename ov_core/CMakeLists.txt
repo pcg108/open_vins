@@ -10,10 +10,6 @@ project(ov_core)
 
 # Include libraries
 # find_package(Eigen3 REQUIRED)
-add_subdirectory(${CMAKE_SOURCE_DIR}/external/OpenBLAS)
-add_subdirectory(${CMAKE_SOURCE_DIR}/external/eigen)
-include_directories(BEFORE ${CMAKE_SOURCE_DIR}/external/eigen)
-
 
 find_package(OpenCV REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system filesystem thread date_time)
@@ -50,7 +46,7 @@ include_directories(
         src
         ${OpenCV_INCLUDE_DIR}
         # ${EIGEN3_INCLUDE_DIRS}
-        ${CMAKE_SOURCE_DIR}/ov_msckf/external/eigen
+        ${CMAKE_SOURCE_DIR}/external/eigen
         ${Boost_INCLUDE_DIRS}
         ${catkin_INCLUDE_DIRS}
 )
@@ -78,7 +74,7 @@ add_library(ov_core_lib SHARED
         src/feat/Feature.cpp
         src/feat/FeatureInitializer.cpp
 )
-target_link_libraries(ov_core_lib ${thirdparty_libraries} openblas_static Eigen3::Eigen)
+target_link_libraries(ov_core_lib ${thirdparty_libraries} custom_eigen_blas)
 target_include_directories(ov_core_lib PUBLIC src)
 set_property(TARGET ov_core_lib PROPERTY CXX_STANDARD 17)
 
