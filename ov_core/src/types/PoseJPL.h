@@ -24,7 +24,7 @@
 #include "Vec.h"
 #include "JPLQuat.h"
 #include "utils/quat_ops.h"
-
+#include <cassert>
 
 namespace ov_type {
 

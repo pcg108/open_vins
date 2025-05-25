@@ -23,7 +23,7 @@
 
 
 #include "Type.h"
-
+#include <cassert>
 
 namespace ov_type {
 

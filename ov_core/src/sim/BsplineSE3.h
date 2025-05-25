@@ -23,6 +23,7 @@
 
 
 #include <Eigen/Eigen>
+#include <cassert>
 
 #include "utils/quat_ops.h"
 
