@@ -31,10 +31,9 @@ set(TARGET "RISCV64_GENERIC")
 add_definitions(-DGEMMINI_BACKEND)
 add_definitions(-DEIGEN_USE_BLAS=1)
 
-add_subdirectory(${CMAKE_SOURCE_DIR}/ov_msckf/external/OpenBLAS)
-add_subdirectory(${CMAKE_SOURCE_DIR}/ov_msckf/external/eigen)
-
-
+add_subdirectory(${CMAKE_SOURCE_DIR}/external/OpenBLAS)
+add_subdirectory(${CMAKE_SOURCE_DIR}/external/eigen)
+include_directories(BEFORE ${CMAKE_SOURCE_DIR}/external/eigen)
 
 # Include libraries
 find_package(OpenCV REQUIRED)
@@ -68,7 +67,8 @@ if (ILLIXR_INTEGRATION)
     include_directories(${ILLIXR_ROOT}
             src
             ${OpenCV_INCLUDE_DIR}
-            ${EIGEN3_INCLUDE_DIR}
+            # ${EIGEN3_INCLUDE_DIR}
+            ${CMAKE_SOURCE_DIR}/external/eigen
             ${Boost_INCLUDE_DIRS}
             ${catkin_INCLUDE_DIRS}
             )
@@ -81,7 +81,8 @@ else()
     include_directories(
             src
             ${OpenCV_INCLUDE_DIR}
-            ${EIGEN3_INCLUDE_DIR}
+            # ${EIGEN3_INCLUDE_DIR}
+            ${CMAKE_SOURCE_DIR}/external/eigen
             ${Boost_INCLUDE_DIRS}
             ${catkin_INCLUDE_DIRS}
     )

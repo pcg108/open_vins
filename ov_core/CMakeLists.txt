@@ -9,7 +9,12 @@ project(ov_core)
 #find_package(catkin QUIET COMPONENTS roscpp rosbag tf std_msgs geometry_msgs sensor_msgs nav_msgs visualization_msgs cv_bridge)
 
 # Include libraries
-find_package(Eigen3 REQUIRED)
+# find_package(Eigen3 REQUIRED)
+add_subdirectory(${CMAKE_SOURCE_DIR}/external/OpenBLAS)
+add_subdirectory(${CMAKE_SOURCE_DIR}/external/eigen)
+include_directories(BEFORE ${CMAKE_SOURCE_DIR}/external/eigen)
+
+
 find_package(OpenCV REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system filesystem thread date_time)
 
@@ -44,7 +49,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -Wall -Wuninitialized")
 include_directories(
         src
         ${OpenCV_INCLUDE_DIR}
-        ${EIGEN3_INCLUDE_DIRS}
+        # ${EIGEN3_INCLUDE_DIRS}
+        ${CMAKE_SOURCE_DIR}/ov_msckf/external/eigen
         ${Boost_INCLUDE_DIRS}
         ${catkin_INCLUDE_DIRS}
 )
@@ -72,7 +78,7 @@ add_library(ov_core_lib SHARED
         src/feat/Feature.cpp
         src/feat/FeatureInitializer.cpp
 )
-target_link_libraries(ov_core_lib ${thirdparty_libraries})
+target_link_libraries(ov_core_lib ${thirdparty_libraries} openblas_static Eigen3::Eigen)
 target_include_directories(ov_core_lib PUBLIC src)
 set_property(TARGET ov_core_lib PROPERTY CXX_STANDARD 17)
 
