@@ -15,6 +15,7 @@
 #include "illixr/opencv_data_types.hpp"
 #include "illixr/phonebook.hpp"
 #include "illixr/relative_clock.hpp"
+#include "illixr/read_hpm.h"
 
 #include "illixr/offline_cam.hpp"
 
@@ -215,6 +216,9 @@ public:
 
 
 	void feed_imu_cam(const switchboard::ptr<const imu_type>& datum, [[maybe_unused]]std::size_t iteration_no) {
+
+		read_counters(counters_before);
+
 		// Ensures that slam doesnt start before valid IMU readings come in
 		if (datum == nullptr) {
 			return;
@@ -298,6 +302,9 @@ public:
 			));
 		}
 		cam_buffer = cam;
+
+		read_counters(counters_after);
+        std::cout << "openvins: " << diff_to_string(counters_after, counters_before) << std::endl;
 	}
 
 	~slam2() override = default;
@@ -314,6 +321,9 @@ private:
 
 	VioManagerOptions manager_params = create_params();
 	VioManager open_vins_estimator;
+
+	double counters_before[29] = {0.0};
+    double counters_after[29] = {0.0};
 };
 
 PLUGIN_MAIN(slam2)
