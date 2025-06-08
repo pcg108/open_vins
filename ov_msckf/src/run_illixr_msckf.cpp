@@ -31,6 +31,8 @@
 #include <iostream>
 #include <algorithm>
 
+#include "read_hpm.h"
+
 using namespace ov_msckf;
 
 VioManager* sys;
@@ -245,9 +247,15 @@ int main(int argc, char** argv) {
     // Load groundtruth if we have it
     std::map<double, Eigen::Matrix<double, 17, 1>> gt_states;
 
+    double counters_before[29] = {0.0};
+    double counters_after[29] = {0.0};
+
     // Loop through data files (camera and imu)
     unsigned num_images = 0;
     for (auto timem : imu0_timestamps) {
+
+        read_counters(counters_before);
+
         // Handle IMU measurement
         if (imu0_vals.find(timem) != imu0_vals.end()) {
             // convert into correct format
@@ -344,6 +352,9 @@ int main(int argc, char** argv) {
 
         //if (num_images == 500)
         //    break;
+
+        read_counters(counters_after);
+        std::cout << "open_vins: " << diff_to_string(counters_after, counters_before) << std::endl;
     }
 
     // Dump frame times
