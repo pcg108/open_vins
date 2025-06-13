@@ -254,7 +254,7 @@ int main(int argc, char** argv) {
     unsigned num_images = 0;
     for (auto timem : imu0_timestamps) {
 
-        read_counters(counters_before);
+        // read_counters(counters_before);
 
         // Handle IMU measurement
         if (imu0_vals.find(timem) != imu0_vals.end()) {
@@ -353,8 +353,8 @@ int main(int argc, char** argv) {
         //if (num_images == 500)
         //    break;
 
-        read_counters(counters_after);
-        std::cout << "open_vins: " << diff_to_string(counters_after, counters_before) << std::endl;
+        // read_counters(counters_after);
+        // std::cout << "open_vins: " << diff_to_string(counters_after, counters_before) << std::endl;
     }
 
     // Dump frame times
